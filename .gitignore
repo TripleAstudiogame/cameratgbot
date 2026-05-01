@@ -1,0 +1,37 @@
+# Environment & Credentials
+.env
+
+# Database & State
+organizations.db
+subscribers.json
+bot.log
+bot.log.*
+service_stdout.log
+service_stderr.log
+update.log
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv/
+
+# Python caching
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Any downloaded media not cleaned up
+image/
+*.jpg
+*.heic
+*.jpeg
+*.png
+*.mp4

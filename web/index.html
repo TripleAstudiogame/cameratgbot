@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Camera — NVR SaaS</title>
+    <link rel="stylesheet" href="/static/styles.css?v=3">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Login -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <div class="login-logo"><ion-icon name="videocam"></ion-icon><span>Report Camera</span></div>
+            <p class="login-subtitle">Панель управления NVR</p>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group"><label>Логин</label><input type="text" id="username" required placeholder="admin"></div>
+                <div class="form-group"><label>Пароль</label><input type="password" id="password" required placeholder="••••••••"></div>
+                <div id="loginError" class="error-text" style="display:none;">Неверный логин или пароль</div>
+                <button type="submit" class="btn-primary login-btn">Войти в систему</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- App -->
+    <div class="app-container" id="appContainer" style="display:none;">
+        <button class="hamburger" onclick="toggleSidebar()"><ion-icon name="menu-outline"></ion-icon></button>
+        <aside class="sidebar" id="sidebar">
+            <div class="logo"><ion-icon name="videocam"></ion-icon><span>Report Camera</span></div>
+            <nav class="nav-menu">
+                <a href="#" class="active" data-page="main" onclick="switchPage('main',this)"><ion-icon name="layers-outline"></ion-icon> Установки</a>
+                <a href="#" id="navUsers" data-page="users" onclick="switchPage('users',this)" style="display:none;"><ion-icon name="people-outline"></ion-icon> Пользователи</a>
+                <a href="#" data-page="analytics" onclick="switchPage('analytics',this)"><ion-icon name="bar-chart-outline"></ion-icon> Аналитика</a>
+                <a href="#" data-page="settings" onclick="switchPage('settings',this)"><ion-icon name="settings-outline"></ion-icon> Настройки</a>
+                <a href="/docs" target="_blank" class="nav-link-external"><ion-icon name="book-outline"></ion-icon> Документация</a>
+            </nav>
+            <div class="sidebar-footer"><span class="version-tag">v2.1.0</span></div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="search-bar"><ion-icon name="search-outline"></ion-icon><input type="text" id="searchInput" placeholder="Поиск..." oninput="handleSearch()"></div>
+                <div class="topbar-right">
+                    <div class="notification-wrapper" id="notifWrapper">
+                        <button class="notif-btn" onclick="toggleNotif()"><ion-icon name="notifications-outline"></ion-icon><span class="notif-badge" id="notifBadge" style="display:none;">0</span></button>
+                        <div class="notif-dropdown" id="notifDropdown"><div class="notif-header">Уведомления</div><div class="notif-list" id="notifList"><p class="notif-empty">Нет уведомлений</p></div></div>
+                    </div>
+                    <div id="exportButtons" style="display: flex; gap: 8px;">
+                        <button class="btn-export" id="btnExportMine" onclick="exportExcel('mine')" title="Скачать свои" style="display:none; width:auto; padding:0 12px; font-size:13px;"><ion-icon name="download-outline" style="margin-right:6px;"></ion-icon> Свои</button>
+                        <button class="btn-export" id="btnExportAll" onclick="exportExcel('all')" title="Скачать всё" style="display:none; width:auto; padding:0 12px; font-size:13px;"><ion-icon name="download-outline" style="margin-right:6px;"></ion-icon> Все</button>
+                        <button class="btn-export" id="btnExportUser" onclick="exportExcel('mine')" title="Экспорт Excel" style="display:none;"><ion-icon name="download-outline"></ion-icon></button>
+                    </div>
+                    <div class="user-profile">
+                        <span class="user-name">Admin</span><div class="avatar">A</div>
+                        <a href="#" id="logoutBtn" class="logout-link"><ion-icon name="log-out-outline"></ion-icon></a>
+                    </div>
+                </div>
+            </header>
+
+            <!-- PAGE: Main -->
+            <div id="page-main" class="page active-page">
+                <div class="stats-row" id="statsRow">
+                    <div class="stat-card"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Всего</div></div>
+                    <div class="stat-card"><div class="stat-value stat-green" id="statActive">0</div><div class="stat-label">Активных</div></div>
+                    <div class="stat-card"><div class="stat-value stat-yellow" id="statExpiring">0</div><div class="stat-label">Истекает ≤30 дн</div></div>
+                    <div class="stat-card"><div class="stat-value stat-blue" id="statSubscribers">0</div><div class="stat-label">Подписчиков</div></div>
+                </div>
+                <div class="dashboard-header">
+                    <div class="filter-tabs">
+                        <button class="filter-btn active" onclick="setFilter('all',this)">Все</button>
+                        <button class="filter-btn" onclick="setFilter('active',this)">Активные</button>
+                        <button class="filter-btn" onclick="setFilter('expiring',this)">Истекает</button>
+                        <button class="filter-btn" onclick="setFilter('inactive',this)">Остановленные</button>
+                    </div>
+                    <button class="btn-primary" onclick="openModal('add')"><ion-icon name="add"></ion-icon> Добавить</button>
+                </div>
+                <div class="org-grid" id="orgGrid"></div>
+            </div>
+
+            <!-- PAGE: Users -->
+            <div id="page-users" class="page">
+                <div class="page-title">
+                    <h1>Пользователи</h1>
+                    <p>Управление доступом к системе</p>
+                </div>
+                <div class="dashboard-header">
+                    <div></div>
+                    <button class="btn-primary" onclick="openUserModal()"><ion-icon name="person-add-outline"></ion-icon> Добавить пользователя</button>
+                </div>
+                <div class="org-grid" id="userGrid"></div>
+            </div>
+
+            <!-- PAGE: Analytics -->
+            <div id="page-analytics" class="page">
+                <div class="page-title"><h1>Аналитика</h1><p>Статистика уведомлений за 30 дней</p></div>
+                <div class="charts-row">
+                    <div class="chart-card"><h3>Уведомлений по дням</h3><canvas id="dailyChart"></canvas></div>
+                    <div class="chart-card"><h3>Топ камер</h3><canvas id="cameraChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- PAGE: Settings -->
+            <div id="page-settings" class="page">
+                <div class="page-title"><h1>Настройки</h1><p>Параметры системы</p></div>
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <h3>Параметры подписки</h3>
+                        <form id="settingsForm" onsubmit="saveSettings(event)">
+                            <div class="form-group"><label>Подписка по умолчанию (дней)</label><input type="number" id="setSubDays" min="1" max="3650"></div>
+                            <p style="font-size:11px;color:var(--muted);margin-top:-8px;margin-bottom:16px;">Срок подписки при создании или продлении организации</p>
+                            <button type="submit" class="btn-primary">Сохранить</button>
+                        </form>
+                    </div>
+                    <div class="settings-card">
+                        <h3>Сменить пароль</h3>
+                        <form id="passwordForm" onsubmit="changePassword(event)">
+                            <div class="form-group"><label>Текущий пароль</label><input type="password" id="curPass" required></div>
+                            <div class="form-group"><label>Новый пароль</label><input type="password" id="newPass" required minlength="4"></div>
+                            <div id="passMsg" class="msg-box" style="display:none;"></div>
+                            <button type="submit" class="btn-primary">Сменить пароль</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal: Org -->
+    <div class="modal-overlay" id="orgModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2 id="modalTitle">Организация</h2><button class="close-btn" onclick="closeModal()"><ion-icon name="close"></ion-icon></button></div>
+            <div class="modal-tabs">
+                <button type="button" class="modal-tab active" onclick="switchModalTab('main')" id="tabBtnMain">Основное</button>
+                <button type="button" class="modal-tab" onclick="switchModalTab('settings')" id="tabBtnSettings">Таймеры</button>
+                <button type="button" class="modal-tab" onclick="switchModalTab('access')" id="tabBtnAccess">Доступ</button>
+                <button type="button" class="modal-tab" onclick="switchModalTab('cameras')" id="tabBtnCameras">Камеры</button>
+            </div>
+            <form id="orgForm" onsubmit="handleFormSubmit(event)">
+                <input type="hidden" id="orgId">
+                
+                <div id="modalTabMain" class="modal-tab-content active">
+                    <div class="form-group"><label>Название</label><input type="text" id="orgName" required placeholder="Корзинка (Филиал 1)"></div>
+                    <div class="form-group"><label>Токен бота</label><input type="text" id="orgToken" required placeholder="123456:ABC-DEF..."></div>
+                    <div class="form-group"><label>Почта (Mail.ru)</label><input type="email" id="orgMail" required placeholder="nvr@mail.ru"></div>
+                    <div class="form-group"><label>Пароль приложения</label><input type="password" id="orgPass" required placeholder="••••••••"></div>
+                    <div class="form-group toggle-group" id="statusGroup" style="display:none;"><label>Статус</label><label class="switch"><input type="checkbox" id="orgActive" checked><span class="slider"></span></label></div>
+                    <hr class="form-divider">
+                    <h3 class="form-section-title">Контактная информация</h3>
+                    <div class="form-group"><label>Ф.И.О.</label><input type="text" id="contactName" placeholder="Иванов Иван"></div>
+                    <div class="form-group"><label>Телефон</label><input type="text" id="contactPhone" placeholder="+998 90 123 45 67"></div>
+                    <div class="form-group"><label>Должность</label><input type="text" id="contactTitle" placeholder="Директор"></div>
+                    <hr class="form-divider">
+                    <div class="form-group"><label>Заметки</label><textarea id="orgNotes" rows="3" placeholder="Модель NVR, особенности, заметки..."></textarea></div>
+                </div>
+
+                <div id="modalTabSettings" class="modal-tab-content">
+                    <div class="form-group"><label>Интервал проверки почты</label>
+                        <select id="orgMailInterval" class="form-select">
+                            <option value="0">По умолчанию (3 сек)</option>
+                            <option value="3">3 сек</option>
+                            <option value="5">5 сек</option>
+                            <option value="10">10 сек</option>
+                            <option value="30">30 сек</option>
+                            <option value="60">1 минута</option>
+                        </select>
+                        <p style="font-size:11px;color:var(--muted);margin-top:4px;">Как часто проверять почтовый ящик на новые письма</p>
+                    </div>
+                    <div class="form-group"><label>Cooldown Telegram</label>
+                        <select id="orgTgCooldown" class="form-select">
+                            <option value="0">По умолчанию (10 сек)</option>
+                            <option value="10">10 сек</option>
+                            <option value="30">30 сек</option>
+                            <option value="60">1 минута</option>
+                            <option value="180">3 минуты</option>
+                            <option value="600">10 минут</option>
+                        </select>
+                        <p style="font-size:11px;color:var(--muted);margin-top:4px;">Задержка между отправкой медиа пакетов</p>
+                    </div>
+                </div>
+
+                <div id="modalTabAccess" class="modal-tab-content">
+                    <div class="access-sub-tabs">
+                        <button type="button" class="access-sub-tab active" onclick="switchAccessSub('approved')" id="accessSubApproved">🔒 Управление</button>
+                        <button type="button" class="access-sub-tab" onclick="switchAccessSub('pending')" id="accessSubPending">⏳ Заявки <span id="pendingBadge" class="pending-badge" style="display:none;">0</span></button>
+                    </div>
+                    <div id="accessApprovedList" class="access-list"></div>
+                    <div id="accessPendingList" class="access-list" style="display:none;"></div>
+                </div>
+                <div id="modalTabCameras" class="modal-tab-content">
+                    <p class="help-text">Задайте понятные названия для обнаруженных камер (например, "Улица").</p>
+                    <div id="cameraInputs" class="camera-inputs-container"></div>
+                </div>
+                
+                <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Отмена</button><button type="submit" class="btn-primary">Сохранить</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Events -->
+    <div class="modal-overlay" id="eventsModal">
+        <div class="modal-content modal-wide">
+            <div class="modal-header"><h2 id="eventsTitle">Лента событий</h2><button class="close-btn" onclick="closeEventsModal()"><ion-icon name="close"></ion-icon></button></div>
+            <div id="eventsList" class="events-list"></div>
+        </div>
+    </div>
+
+    <!-- Modal: Subscribers -->
+    <div class="modal-overlay" id="subsModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2 id="subsModalTitle">Подписчики</h2><button class="close-btn" onclick="closeSubsModal()"><ion-icon name="close"></ion-icon></button></div>
+            <div id="subsList" class="subs-list"></div>
+        </div>
+    </div>
+
+    <!-- Modal: Test -->
+    <div class="modal-overlay" id="testModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Тест соединения</h2><button class="close-btn" onclick="closeTestModal()"><ion-icon name="close"></ion-icon></button></div>
+            <div id="testResult" class="test-result"></div>
+        </div>
+    </div>
+
+    <!-- Modal: User -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Новый пользователь</h2><button class="close-btn" onclick="closeUserModal()"><ion-icon name="close"></ion-icon></button></div>
+            <form id="userForm" onsubmit="handleUserSubmit(event)">
+                <div class="form-group"><label>Имя</label><input type="text" id="newUserName" required placeholder="Имя пользователя"></div>
+                <div class="form-group"><label>Телефон номер</label><input type="text" id="newUserPhone" placeholder="+998 90 123 45 67"></div>
+                <div class="form-group"><label>Логин (для входа)</label><input type="text" id="newUserLogin" required placeholder="login123"></div>
+                <div class="form-group"><label>Пароль (для входа)</label><input type="password" id="newUserPass" required placeholder="••••••••" minlength="4"></div>
+                <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeUserModal()">Отмена</button><button type="submit" class="btn-primary">Добавить</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Renew Sub -->
+    <div class="modal-overlay" id="renewModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header"><h2>Продление подписки</h2><button class="close-btn" onclick="closeRenewModal()"><ion-icon name="close"></ion-icon></button></div>
+            <div style="padding-top: 15px; display: flex; flex-direction: column; gap: 15px;">
+                <input type="hidden" id="renewOrgId">
+                <button class="btn-primary" style="background: var(--blue);" onclick="submitRenew(3)">Продлить на 3 дня (Бесплатно)</button>
+                <button class="btn-primary" style="background: var(--green);" onclick="submitRenew(365)">Продлить на 365 дней (Платно)</button>
+                <button class="btn-secondary" onclick="closeRenewModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=3"></script>
+</body>
+</html>
