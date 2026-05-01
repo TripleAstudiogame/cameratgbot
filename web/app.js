@@ -64,7 +64,7 @@ async function handleLogin(e){
             showDashboard();
         }
         else el.style.display='block';
-    }catch{el.style.display='block';}
+    }catch(err){el.style.display='block';}
 }
 function logout(){
     token=null;role=null;
