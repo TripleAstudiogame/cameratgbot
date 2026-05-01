@@ -31,6 +31,15 @@ if (Get-Command "python" -ErrorAction SilentlyContinue) {
     Start-Process -FilePath $pyInstaller -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1" -Wait -NoNewWindow
     Write-Host "Python installed successfully!" -ForegroundColor Green
     Update-EnvVars
+    Start-Sleep -Seconds 3 # Give Windows a moment to register the files
+}
+
+# Resolve Python Executable Path (PowerShell sometimes caches PATH)
+$pythonExe = "python"
+if (-Not (Get-Command "python" -ErrorAction SilentlyContinue)) {
+    if (Test-Path "C:\Program Files\Python311\python.exe") { $pythonExe = "C:\Program Files\Python311\python.exe" }
+    elseif (Test-Path "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe") { $pythonExe = "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe" }
+    else { Write-Host "WARNING: Python executable not found in PATH." -ForegroundColor Yellow }
 }
 
 # 2. Install Git (Silent)
@@ -75,7 +84,7 @@ Write-Host "Port 6565 is now open." -ForegroundColor Green
 # 5. Virtual Environment and Pip
 Write-Step "Setting up Python venv..."
 if (-Not (Test-Path "$ScriptDir\venv")) {
-    python -m venv "$ScriptDir\venv"
+    & $pythonExe -m venv "$ScriptDir\venv"
 }
 Write-Host "Installing pip requirements..."
 & "$ScriptDir\venv\Scripts\python.exe" -m pip install --upgrade pip | Out-Null
@@ -87,16 +96,16 @@ Write-Step "Registering ReportCamera service..."
 $serviceName = "ReportCamera"
 $serviceStatus = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
 if ($serviceStatus) {
-    nssm stop $serviceName | Out-Null
-    nssm remove $serviceName confirm | Out-Null
+    & $nssmPath stop $serviceName | Out-Null
+    & $nssmPath remove $serviceName confirm | Out-Null
 }
-nssm install $serviceName "$ScriptDir\venv\Scripts\python.exe" "app.py" | Out-Null
-nssm set $serviceName AppDirectory "$ScriptDir" | Out-Null
-nssm set $serviceName AppStdout "$ScriptDir\service_stdout.log" | Out-Null
-nssm set $serviceName AppStderr "$ScriptDir\service_stderr.log" | Out-Null
-nssm set $serviceName Start SERVICE_AUTO_START | Out-Null
-nssm set $serviceName AppRestartDelay 3000 | Out-Null
-nssm start $serviceName | Out-Null
+& $nssmPath install $serviceName "$ScriptDir\venv\Scripts\python.exe" "app.py" | Out-Null
+& $nssmPath set $serviceName AppDirectory "$ScriptDir" | Out-Null
+& $nssmPath set $serviceName AppStdout "$ScriptDir\service_stdout.log" | Out-Null
+& $nssmPath set $serviceName AppStderr "$ScriptDir\service_stderr.log" | Out-Null
+& $nssmPath set $serviceName Start SERVICE_AUTO_START | Out-Null
+& $nssmPath set $serviceName AppRestartDelay 3000 | Out-Null
+& $nssmPath start $serviceName | Out-Null
 Write-Host "Service ReportCamera installed and started successfully!" -ForegroundColor Green
 
 # 7. CI/CD Auto-updater Task
