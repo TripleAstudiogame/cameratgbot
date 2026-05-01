@@ -11,7 +11,7 @@ function Write-Step ($message) {
     Write-Host "`n[>>>] $message" -ForegroundColor Cyan
 }
 
-function Refresh-EnvVars {
+function Update-EnvVars {
     foreach($level in "Machine","User") {
         [Environment]::GetEnvironmentVariables($level).GetEnumerator() | ForEach-Object {
             [Environment]::SetEnvironmentVariable($_.Name, $_.Value, "Process")
@@ -30,7 +30,7 @@ if (Get-Command "python" -ErrorAction SilentlyContinue) {
     Invoke-WebRequest -Uri $pyUrl -OutFile $pyInstaller
     Start-Process -FilePath $pyInstaller -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1" -Wait -NoNewWindow
     Write-Host "Python installed successfully!" -ForegroundColor Green
-    Refresh-EnvVars
+    Update-EnvVars
 }
 
 # 2. Install Git (Silent)
@@ -44,7 +44,7 @@ if (Get-Command "git" -ErrorAction SilentlyContinue) {
     Invoke-WebRequest -Uri $gitUrl -OutFile $gitInstaller
     Start-Process -FilePath $gitInstaller -ArgumentList "/VERYSILENT /NORESTART /COMPONENTS=`"icons,ext\reg\shellhere,assoc,assoc_sh`"" -Wait -NoNewWindow
     Write-Host "Git installed successfully!" -ForegroundColor Green
-    Refresh-EnvVars
+    Update-EnvVars
 }
 
 # 3. Install NSSM
