@@ -67,15 +67,32 @@ async def lifespan(app):
     
     # Initialize Admin User if not exists
     admin = db.get_user_by_username(ADMIN_USERNAME)
+    import sqlite3
+    conn = sqlite3.connect(db.DB_FILE)
     if not admin:
-        import sqlite3
-        conn = sqlite3.connect(db.DB_FILE)
         conn.execute(
             "INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, 'admin')",
             (ADMIN_USERNAME, ADMIN_PASSWORD_HASH, "Administrator")
         )
-        conn.commit()
-        conn.close()
+    else:
+        # Always sync the admin password from the current .env / defaults
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE username = ?",
+            (ADMIN_PASSWORD_HASH, admin['username'])
+        )
+    conn.commit()
+    conn.close()
+
+    # Write credentials to a text file for easy debugging
+    try:
+        with open("credentials.txt", "w", encoding="utf-8") as f:
+            f.write(f"Логин: {ADMIN_USERNAME}\n")
+            if os.getenv("ADMIN_PASSWORD_HASH"):
+                f.write("Пароль: [Тот, чей хэш указан в файле .env]\n")
+            else:
+                f.write("Пароль: Amir\n")
+    except Exception:
+        pass
 
     engine.start_engine()
     yield

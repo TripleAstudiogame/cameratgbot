@@ -417,7 +417,7 @@ def get_all_settings():
 
 def get_user_by_username(username):
     conn = _conn()
-    row = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    row = conn.execute('SELECT * FROM users WHERE LOWER(username) = LOWER(?)', (username,)).fetchone()
     conn.close()
     return dict(row) if row else None
 
