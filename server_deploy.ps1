@@ -116,7 +116,10 @@ $updaterScript = "$ScriptDir\auto_updater.ps1"
 schtasks /Create /TN $taskName /TR "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$updaterScript`"" /SC MINUTE /MO 5 /RU "SYSTEM" /RL HIGHEST /F | Out-Null
 Write-Host "Auto-updater configured (checks every 5 minutes)." -ForegroundColor Green
 
+$ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Ethernet*" -ErrorAction SilentlyContinue | Select-Object -First 1).IPAddress
+if (-not $ip) { $ip = "localhost" }
+
 Write-Host "`n=========================================================" -ForegroundColor Cyan
 Write-Host "INSTALLATION COMPLETED SUCCESSFULLY!" -ForegroundColor Green
-Write-Host "Dashboard is available at: http://<SERVER-IP>:6565" -ForegroundColor Yellow
+Write-Host "Dashboard is available at: http://$($ip):6565" -ForegroundColor Yellow
 Write-Host "=========================================================`n" -ForegroundColor Cyan
