@@ -111,7 +111,7 @@ Write-Host "Service ReportCamera installed and started successfully!" -Foregroun
 # 7. CI/CD Auto-updater Task
 Write-Step "Setting up Auto-updater (GitHub -> Server)..."
 $taskName = "ReportCamera_AutoUpdater"
-schtasks /Delete /TN $taskName /F >$null 2>&1
+cmd.exe /c "schtasks /Delete /TN `"$taskName`" /F >nul 2>nul"
 $updaterScript = "$ScriptDir\auto_updater.ps1"
 schtasks /Create /TN $taskName /TR "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$updaterScript`"" /SC MINUTE /MO 5 /RU "SYSTEM" /RL HIGHEST /F | Out-Null
 Write-Host "Auto-updater configured (checks every 5 minutes)." -ForegroundColor Green
