@@ -41,6 +41,8 @@ function showDashboard(){
         document.getElementById('btnExportUser').style.display='inline-flex';
     }
     fetchAll();
+    checkUpdateStatus();
+    setInterval(checkUpdateStatus, 30000);
 }
 
 // Auth
@@ -80,6 +82,31 @@ async function fetchAll(){
         organizations=await orgR.json();healthData=await hR.json();
         updateStats();updateNotif();renderGrid();
     }catch(e){console.error(e);}
+}
+
+async function checkUpdateStatus() {
+    try {
+        const r = await api('/api/system/update-status');
+        if (r.ok) {
+            const data = await r.json();
+            const textEl = document.getElementById('updateText');
+            const dotEl = document.getElementById('updateDot');
+            if (textEl && dotEl) {
+                textEl.innerText = data.status || 'Нет данных';
+                textEl.title = data.status || '';
+                if (data.status && data.status.includes('ОШИБКА')) {
+                    dotEl.style.background = '#EF4444';
+                    dotEl.style.boxShadow = '0 0 8px #EF4444';
+                } else if (data.status && data.status.includes('CHECK:')) {
+                    dotEl.style.background = '#10B981';
+                    dotEl.style.boxShadow = '0 0 8px #10B981';
+                } else {
+                    dotEl.style.background = '#3B82F6';
+                    dotEl.style.boxShadow = '0 0 8px #3B82F6';
+                }
+            }
+        }
+    } catch(e) {}
 }
 
 // Pages

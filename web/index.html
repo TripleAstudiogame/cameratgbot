@@ -37,7 +37,13 @@
                 <a href="#" data-page="settings" onclick="switchPage('settings',this)"><ion-icon name="settings-outline"></ion-icon> Настройки</a>
                 <a href="/docs" target="_blank" class="nav-link-external"><ion-icon name="book-outline"></ion-icon> Документация</a>
             </nav>
-            <div class="sidebar-footer"><span class="version-tag">v2.1.0</span></div>
+            <div class="sidebar-footer">
+                <div id="updateIndicator" style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-bottom:8px; cursor:help;" title="Статус автообновления через GitHub">
+                    <div id="updateDot" style="width:8px;height:8px;border-radius:50%;background:#F59E0B;box-shadow: 0 0 8px #F59E0B;"></div>
+                    <span id="updateText" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Автообновление...</span>
+                </div>
+                <span class="version-tag">v2.1.0</span>
+            </div>
         </aside>
 
         <main class="main-content">

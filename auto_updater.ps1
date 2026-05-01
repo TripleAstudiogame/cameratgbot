@@ -42,6 +42,6 @@ if ($local -ne $remote) {
     
     Log-Update "Обновление успешно завершено!`n"
 } else {
-    # Код актуален, ничего не делаем (чтобы не спамить логи, можно закомментировать)
-    # Log-Update "Система актуальна."
+    # Write a heartbeat so the web UI knows the background task is running
+    Log-Update "CHECK: Система актуальна (Local: $local)"
 }

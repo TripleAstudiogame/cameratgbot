@@ -233,6 +233,21 @@ def delete_user(uid: int, u: dict = Depends(get_user)):
     db.delete_user(uid)
     return {"ok": True}
 
+# ── System Status ──
+@app.get("/api/system/update-status")
+def get_update_status(u: dict = Depends(get_user)):
+    try:
+        if not os.path.exists("update.log"):
+            return {"status": "Ожидание первого запуска..."}
+        with open("update.log", "r", encoding="utf-8") as f:
+            lines = f.readlines()
+            if not lines:
+                return {"status": "Нет данных"}
+            last_line = lines[-1].strip()
+            return {"status": last_line}
+    except Exception as e:
+        return {"status": f"Ошибка чтения лога: {e}"}
+
 # ── Organizations CRUD ──
 def _mask_org(org: dict) -> dict:
     """Remove sensitive fields from org data sent to frontend."""
