@@ -26,6 +26,12 @@ function showDashboard(){
             role = payload.role;
             localStorage.setItem('nvr_role', role);
             localStorage.setItem('nvr_user_id', payload.id);
+            
+            // Update UI with real username
+            const nameEl = document.querySelector('.user-name');
+            const avatarEl = document.querySelector('.avatar');
+            if (nameEl) nameEl.innerText = payload.sub || 'User';
+            if (avatarEl) avatarEl.innerText = (payload.sub || 'U').charAt(0).toUpperCase();
         } catch(e) {}
     }
 

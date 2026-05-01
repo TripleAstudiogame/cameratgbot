@@ -75,9 +75,9 @@ async def lifespan(app):
             (ADMIN_USERNAME, ADMIN_PASSWORD_HASH, "Administrator")
         )
     else:
-        # Always sync the admin password from the current .env / defaults
+        # Always sync the admin password and role from the current .env / defaults
         conn.execute(
-            "UPDATE users SET password_hash = ? WHERE username = ?",
+            "UPDATE users SET password_hash = ?, role = 'admin' WHERE username = ?",
             (ADMIN_PASSWORD_HASH, admin['username'])
         )
     conn.commit()
@@ -131,7 +131,7 @@ async def security_headers(request: Request, call_next):
     r.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     r.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' https://unpkg.com https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src https://fonts.gstatic.com; "
         "img-src 'self' data:; "
@@ -278,10 +278,14 @@ def _mask_org(org: dict) -> dict:
 
 @app.get("/api/organizations")
 def list_orgs(user_id: int = None, u: dict = Depends(get_user)):
-    if u["role"] == "admin":
+    role = u.get("role")
+    uid = u.get("id")
+    if role == "admin":
         orgs = db.get_organizations(user_id)
     else:
-        orgs = db.get_organizations(u["id"])
+        orgs = db.get_organizations(uid)
+    
+    print(f"[DEBUG] User {u.get('username')} (ID: {uid}, Role: {role}) requested orgs. Found: {len(orgs)}")
     return [_mask_org(o) for o in orgs]
 
 @app.post("/api/organizations")
