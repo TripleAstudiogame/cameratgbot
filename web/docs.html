@@ -13,15 +13,12 @@
             --surface: #0A0A0A;
             --card: #111;
             --border: #1F1F1F;
-            --border-h: #2E2E2E;
             --primary: #0070F3;
             --text: #EDEDED;
             --muted: #71717A;
             --blue: #3B82F6;
             --green: #10B981;
-            --red: #EF4444;
             --font: 'Inter', system-ui, sans-serif;
-            --r: 8px;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -93,17 +90,11 @@
             font-size: 14px;
             transition: 0.15s;
         }
-        .nav-link:hover, .nav-link.active {
-            color: #FFF;
-        }
+        .nav-link:hover, .nav-link.active { color: #FFF; }
 
         /* Content */
-        .content {
-            flex: 1;
-            padding: 48px 64px 80px;
-            max-width: 800px;
-        }
-        h1 { font-size: 32px; font-weight: 700; margin-bottom: 16px; letter-spacing: -0.02em; }
+        .content { flex: 1; padding: 48px 64px 80px; max-width: 800px; }
+        h1 { font-size: 32px; font-weight: 700; margin-bottom: 16px; }
         h2 { font-size: 24px; font-weight: 600; margin: 40px 0 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px;}
         h3 { font-size: 18px; font-weight: 600; margin: 24px 0 12px; }
         p { margin-bottom: 16px; color: #A1A1AA; }
@@ -123,7 +114,7 @@
             background: var(--card);
             border: 1px solid var(--border);
             padding: 16px;
-            border-radius: var(--r);
+            border-radius: 8px;
             overflow-x: auto;
             margin-bottom: 24px;
         }
@@ -138,47 +129,28 @@
             display: flex;
             gap: 12px;
         }
-        .alert.warning {
-            background: rgba(245, 158, 11, 0.1);
-            border-color: #F59E0B;
-        }
-        .alert.success {
-            background: rgba(16, 185, 129, 0.1);
-            border-color: var(--green);
-        }
+        .alert.warning { background: rgba(245, 158, 11, 0.1); border-color: #F59E0B; }
+        .alert.success { background: rgba(16, 185, 129, 0.1); border-color: var(--green); }
         .alert ion-icon { font-size: 24px; color: var(--blue); flex-shrink: 0; }
         .alert.warning ion-icon { color: #F59E0B; }
         .alert.success ion-icon { color: var(--green); }
         .alert p { margin: 0; color: #E4E4E7; }
 
-        .feature-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 32px 0;
-        }
-        .feature-card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            padding: 24px;
-            border-radius: 12px;
-        }
-        .feature-icon {
-            width: 40px; height: 40px;
-            background: var(--border);
-            border-radius: 10px;
+        /* Step Guide */
+        .step { display: flex; gap: 16px; margin-bottom: 24px; }
+        .step-number {
+            width: 32px; height: 32px;
+            background: var(--blue); color: #fff;
+            border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            font-size: 20px; color: var(--text);
-            margin-bottom: 16px;
+            font-weight: 700; flex-shrink: 0;
         }
-        .feature-card h3 { margin: 0 0 8px 0; }
-        .feature-card p { margin: 0; font-size: 14px; }
+        .step-content h3 { margin-top: 0; margin-bottom: 8px; color: #fff; }
 
         @media (max-width: 768px) {
             .container { flex-direction: column; }
             .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 20px; }
             .content { padding: 32px 20px; }
-            .feature-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -196,127 +168,105 @@
             <div class="nav-group">
                 <div class="nav-title">Обзор</div>
                 <a href="#intro" class="nav-link active">Введение</a>
-                <a href="#architecture" class="nav-link">Архитектура системы</a>
+                <a href="#install" class="nav-link">Установка за 1 клик</a>
             </div>
             <div class="nav-group">
-                <div class="nav-title">Парсинг и ИИ</div>
-                <a href="#parsers" class="nav-link">Типы уведомлений</a>
-                <a href="#heic" class="nav-link">Конвертация HEIC</a>
+                <div class="nav-title">Движок и ИИ</div>
+                <a href="#parsers" class="nav-link">Парсинг писем (ИИ)</a>
+                <a href="#heic" class="nav-link">Конвертация Apple HEIC</a>
+                <a href="#db" class="nav-link">База данных SQLite WAL</a>
             </div>
             <div class="nav-group">
-                <div class="nav-title">Деплой и CI/CD</div>
-                <a href="#deploy" class="nav-link">Запуск на сервере</a>
-                <a href="#cicd" class="nav-link">Автообновление (GitHub)</a>
-            </div>
-            <div class="nav-group">
-                <div class="nav-title">Безопасность</div>
-                <a href="#security" class="nav-link">Защита данных</a>
+                <div class="nav-title">CI/CD и Безопасность</div>
+                <a href="#cicd" class="nav-link">GitHub Auto-Updater</a>
+                <a href="#security" class="nav-link">Политики безопасности</a>
             </div>
         </div>
 
         <div class="content">
             <h1 id="intro">Документация Report Camera</h1>
-            <p class="lead">Интеллектуальная система мониторинга NVR камер, парсинга Email-отчётов и Telegram-уведомлений корпоративного уровня.</p>
+            <p class="lead">Полное руководство по интеллектуальному мониторингу NVR камер, автоматизированной установке и архитектуре.</p>
 
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="feature-icon"><ion-icon name="mail-unread-outline"></ion-icon></div>
-                    <h3>Умный IMAP Парсер</h3>
-                    <p>Асинхронно читает почту Mail.ru, извлекает вложения (даже Apple HEIC) и выявляет типы событий.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><ion-icon name="paper-plane-outline"></ion-icon></div>
-                    <h3>Telegram Бот API</h3>
-                    <p>Рассылает фото и видео пользователям с учётом кулдаунов и прав доступа.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><ion-icon name="shield-checkmark-outline"></ion-icon></div>
-                    <h3>Безопасный Дашборд</h3>
-                    <p>Админ-панель на FastAPI с JWT-авторизацией, строгими заголовками CSP и HSTS.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><ion-icon name="sync-outline"></ion-icon></div>
-                    <h3>Auto-Updater</h3>
-                    <p>Автоматическое обновление кода с GitHub без остановки работы и потери данных базы.</p>
+            <h2 id="install">Установка на Windows Server за 1 клик (1-Click Install)</h2>
+            <p>Мы полностью избавились от ручной установки зависимостей (Python, Git, скрипты брандмауэра и т.д.). Теперь система устанавливает себя сама даже на абсолютно "голый" Windows Server 2019.</p>
+
+            <div class="alert success">
+                <ion-icon name="rocket-outline"></ion-icon>
+                <div>
+                    <strong>Всё, что вам нужно:</strong>
+                    <p>Просто скачайте репозиторий (или файлы проекта) на сервер и запустите файл <code>setup_server.bat</code>.</p>
                 </div>
             </div>
 
-            <h2 id="architecture">Архитектура системы</h2>
-            <p>Проект построен на гибридной модели: асинхронный веб-сервер и фоновый многопоточный движок.</p>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Запуск установщика</h3>
+                    <p>Дважды кликните по <code>setup_server.bat</code>. Он запросит права администратора и запустит главный скрипт развертывания.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Автоматическое скачивание зависимостей</h3>
+                    <p>Скрипт проверит наличие <strong>Python 3.11</strong> и <strong>Git</strong>. Если их нет — он сам скачает официальные установщики из интернета и установит их в "тихом" (Silent) режиме, не требуя от вас нажимать "Далее". Также он скачает утилиту <strong>NSSM</strong> для создания системной службы.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Настройка окружения и Firewall</h3>
+                    <p>Скрипт сам откроет порт <code>6565</code> в Брандмауэре Windows, создаст виртуальное окружение <code>venv</code> и установит все Python-библиотеки.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h3>Фоновые службы и Автообновление</h3>
+                    <p>Скрипт зарегистрирует приложение как системную службу <code>ReportCamera</code> (она будет сама стартовать при перезагрузке сервера). А также создаст невидимую задачу в Планировщике Задач, которая каждые 5 минут будет проверять GitHub на обновления.</p>
+                </div>
+            </div>
+
+            <h2 id="parsers">Парсинг писем (Искусственный интеллект)</h2>
+            <p>Сервер асинхронно подключается к IMAP-серверу Mail.ru и анализирует тему письма, чтобы понять, какой ИИ-триггер сработал на камере:</p>
             <ul>
-                <li><strong>Веб-сервер:</strong> <code>FastAPI</code> + <code>Uvicorn</code> (порт 6565). Отвечает за REST API и отдачу статики.</li>
-                <li><strong>Движок:</strong> <code>engine.py</code>. Фоновые потоки, которые каждые N секунд проверяют почту по каждой организации.</li>
-                <li><strong>База данных:</strong> <code>SQLite</code> в режиме WAL (Write-Ahead Logging). Обеспечивает неблокирующий конкурентный доступ к данным.</li>
-                <li><strong>Телеграм-интерфейс:</strong> <code>telebot</code> (pyTelegramBotAPI) используется в режиме polling, интегрированный в цикл проверки почты.</li>
+                <li><strong>Человек:</strong> Теги <code>Person Alarm</code>, <code>Human</code>, <code>PD</code>. Формирует уведомление с 🧍‍♂️ иконкой.</li>
+                <li><strong>Транспорт:</strong> Теги <code>Vehicle</code>, <code>License Plate</code>, <code>Motor Vehicle</code>. Если ИИ распознал гос.номер авто (например, <code>[01A123BC]</code>), парсер вырежет его из текста и выделит жирным.</li>
+                <li><strong>Движение:</strong> Теги <code>Motion</code>, <code>MD</code>. Стандартный детектор движения.</li>
             </ul>
 
-            <h2 id="parsers">Типы уведомлений (Парсеры)</h2>
-            <p>Система умеет распознавать три ключевых типа событий на основе темы писем NVR (Network Video Recorder):</p>
-            
+            <h2 id="heic">Конвертация Apple HEIC "на лету"</h2>
+            <p>NVR устройства, настроенные через экосистему Apple, часто присылают скриншоты в формате <code>.heic</code> или <code>.heif</code>. Telegram API не поддерживает эти форматы (он выдаст ошибку при отправке). </p>
+            <p><strong>Решение:</strong> Модуль <code>pillow_heif</code> перехватывает такие файлы. Они загружаются в оперативную память (через <code>io.BytesIO</code>) и мгновенно конвертируются в <code>.jpeg</code>. Это полностью избавляет SSD диск сервера от операций записи временных файлов.</p>
+
+            <h2 id="db">Архитектура Базы Данных (SQLite WAL)</h2>
+            <p>В проекте используется встроенная БД <code>SQLite</code>. Чтобы предотвратить ошибку <code>database is locked</code> при одновременных запросах (когда фоновый движок проверяет почту, а админ в это же время редактирует настройки на сайте), мы включили режим <strong>Write-Ahead Logging (WAL)</strong>.</p>
+            <p>WAL позволяет читателям (чтение БД) не блокировать писателей (запись в БД) и наоборот, обеспечивая надежную конкурентную работу.</p>
+
+            <h2 id="cicd">GitHub Auto-Updater (Автообновления)</h2>
+            <p>Вам больше не нужно подключаться к серверу (RDP), чтобы загрузить новые фичи.</p>
             <div class="alert">
-                <ion-icon name="walk-outline"></ion-icon>
+                <ion-icon name="sync-outline"></ion-icon>
                 <div>
-                    <strong>1. Обнаружение человека</strong>
-                    <p>Срабатывает при темах "Person Alarm" или "Human". Формирует отчёт о проходе человека, извлекая прикреплённые снимки.</p>
+                    <strong>Процесс работы:</strong>
+                    <p>1. Вы пишете код на своем ноутбуке и делаете <code>git push origin main</code>.<br>
+                       2. Сервер каждые 5 минут делает <code>git fetch</code>.<br>
+                       3. Если есть новый код, сервер <b>останавливает службу</b>, скачивает код, делает <code>pip install</code> и <b>запускает службу</b>.</p>
                 </div>
             </div>
+            <p>Защита данных: файлы <code>.env</code>, <code>organizations.db</code> и логи защищены файлом <code>.gitignore</code>, поэтому автообновление их никогда не удалит.</p>
 
-            <div class="alert">
-                <ion-icon name="car-outline"></ion-icon>
-                <div>
-                    <strong>2. Обнаружение транспорта</strong>
-                    <p>Срабатывает при темах "Vehicle" или "License Plate". Парсер умеет находить гос.номер автомобиля в тексте письма и выводить его отдельным жирным шрифтом в Telegram.</p>
-                </div>
-            </div>
-
-            <div class="alert">
-                <ion-icon name="flash-outline"></ion-icon>
-                <div>
-                    <strong>3. Обнаружение движения</strong>
-                    <p>Стандартный детектор "Motion Detected". Если ИИ не определил тип объекта, фиксируется базовое движение.</p>
-                </div>
-            </div>
-
-            <h2 id="heic">Конвертация HEIC изображений</h2>
-            <p>NVR устройства от Apple или определенные iOS-клиенты могут отправлять фото в формате HEIC/HEIF. Telegram не поддерживает этот формат напрямую.</p>
-            <p>Мы используем библиотеку <code>pillow_heif</code> совместно с <code>Pillow</code>. Вся конвертация происходит в оперативной памяти (<code>io.BytesIO</code>) "на лету" без сохранения временных файлов на диск, что сильно экономит ресурс SSD сервера.</p>
-
-            <h2 id="deploy">Запуск на Windows Server 2019</h2>
-            <p>Сервер работает как системная служба Windows (Service) с использованием утилиты <strong>NSSM</strong>. Это гарантирует автозапуск после перезагрузки и авторестарт в случае падения.</p>
-            
-            <pre><code># 1. Открытие порта 6565 в Firewall
-Запуск от Администратора: .\setup_firewall.ps1
-
-# 2. Установка службы
-Запуск от Администратора: .\install_service.bat</code></pre>
-
-            <h2 id="cicd">Автообновление (GitHub CI/CD)</h2>
-            <p>Для обновления приложения вам не нужно заходить на сервер через RDP. Достаточно сделать <code>git push origin main</code> с вашего локального компьютера.</p>
-            <p>На сервере работает планировщик задач (Task Scheduler), который каждые 5 минут дёргает скрипт <code>auto_updater.ps1</code>.</p>
-            
-            <div class="alert warning">
-                <ion-icon name="warning-outline"></ion-icon>
-                <div>
-                    <strong>Как работает автообновление:</strong>
-                    <p>Скрипт проверяет новые коммиты. Если они есть -> останавливает NSSM службу -> делает git reset --hard -> обновляет зависимости pip -> запускает службу. Весь даунтайм составляет менее 10 секунд.</p>
-                </div>
-            </div>
-
-            <h2 id="security">Защита данных и Безопасность</h2>
-            <p>Система спроектирована с учётом Enterprise-стандартов безопасности:</p>
+            <h2 id="security">Политики безопасности</h2>
             <ul>
-                <li><strong>Маскировка данных:</strong> Токены ботов (<code>861507***sZl4</code>) и пароли (<code>••••••••</code>) никогда не отдаются на клиент в открытом виде.</li>
-                <li><strong>JWT и Хеширование:</strong> Авторизация по JWT с коротким сроком жизни. Пароли в БД хешируются медленным алгоритмом <code>PBKDF2</code> с уникальной солью.</li>
-                <li><strong>Gitignore:</strong> Файлы данных (<code>organizations.db</code>, <code>.env</code>, <code>bot.log</code>) жёстко игнорируются гитом. `git reset --hard` при автообновлении никогда их не удалит.</li>
-                <li><strong>Security Headers:</strong> API защищено строгими политиками: Content-Security-Policy, X-Frame-Options (DENY), HSTS. Уязвимости XSS и Clickjacking полностью исключены.</li>
-                <li><strong>Rate Limiting:</strong> Форма входа защищена ограничителем 5 попыток в минуту.</li>
+                <li><strong>Маскировка:</strong> Токены ботов (<code>861507***sZl4</code>) и пароли (<code>••••••••</code>) замаскированы в API.</li>
+                <li><strong>Хеши:</strong> Пароль администратора хранится в виде <code>PBKDF2-HMAC-SHA256</code> хеша (в 100 000 итераций).</li>
+                <li><strong>HTTP Headers:</strong> На всех ответах сервера стоят заголовки <code>Content-Security-Policy</code>, <code>X-Frame-Options: DENY</code>, и <code>HSTS</code>, защищающие панель от XSS и Clickjacking.</li>
             </ul>
 
         </div>
     </div>
 
     <script>
-        // Простая подсветка активного пункта меню при скролле
         const links = document.querySelectorAll('.nav-link');
         const sections = document.querySelectorAll('h1, h2');
 
