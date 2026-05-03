@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 import db
 import engine
 import logging
+logger = logging.getLogger("app")
 
 load_dotenv()
 
@@ -131,14 +132,16 @@ async def security_headers(request: Request, call_next):
     r.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     r.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src https://fonts.gstatic.com; "
-        "img-src 'self' data:; "
-        "connect-src 'self'"
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+        "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https://unpkg.com https://cdn.jsdelivr.net; "
+        "connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net; "
+        "frame-src 'self'; "
+        "media-src 'self';"
     )
-    # Prevent caching of API responses with sensitive data
-    if request.url.path.startswith("/api/"):
+    # Cache control for development and security
+    if request.url.path.startswith("/api/") or request.url.path == "/":
         r.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
         r.headers["Pragma"] = "no-cache"
     return r
@@ -164,7 +167,7 @@ async def get_user(token: str = Depends(oauth2_scheme)):
     except jwt.PyJWTError: raise HTTPException(401, "Invalid token")
 
 # Models
-_BOT_TOKEN_RE = _re.compile(r'^\d+:[A-Za-z0-9_-]{20,}$')
+_BOT_TOKEN_RE = _re.compile(r'^\d+:.+$')
 
 class OrgCreate(BaseModel):
     name: str; bot_token: str; mail_username: str; mail_password: str
@@ -240,9 +243,18 @@ def list_users(u: dict = Depends(get_user)):
 @app.post("/api/users")
 def create_user(user: UserCreate, u: dict = Depends(get_user)):
     if u["role"] != "admin": raise HTTPException(403)
-    new_id = db.add_user(user.username, _hash(user.password), user.name, user.phone)
-    if not new_id: raise HTTPException(400, "Пользователь с таким логином уже существует")
-    return {"id": new_id}
+    try:
+        new_id = db.add_user(user.username, _hash(user.password), user.name, user.phone)
+        if not new_id:
+            logger.warning(f"User creation failed: username {user.username} already exists")
+            raise HTTPException(400, "Пользователь с таким логином уже существует")
+        logger.info(f"User created: {user.username} (ID: {new_id})")
+        return {"id": new_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error creating user: {e}")
+        raise HTTPException(500, f"Internal Server Error: {str(e)}")
 
 @app.delete("/api/users/{uid}")
 def delete_user(uid: int, u: dict = Depends(get_user)):
@@ -514,9 +526,6 @@ app.mount("/static", StaticFiles(directory="web"), name="static")
 
 @app.get("/")
 def dashboard(): return FileResponse("web/index.html")
-
-@app.get("/docs", include_in_schema=False)
-def documentation(): return FileResponse("web/docs.html")
 
 if __name__ == "__main__":
     import uvicorn

@@ -35,7 +35,6 @@
                 <a href="#" id="navUsers" data-page="users" onclick="switchPage('users',this)" style="display:none;"><ion-icon name="people-outline"></ion-icon> Пользователи</a>
                 <a href="#" data-page="analytics" onclick="switchPage('analytics',this)"><ion-icon name="bar-chart-outline"></ion-icon> Аналитика</a>
                 <a href="#" data-page="settings" onclick="switchPage('settings',this)"><ion-icon name="settings-outline"></ion-icon> Настройки</a>
-                <a href="/docs" target="_blank" class="nav-link-external"><ion-icon name="book-outline"></ion-icon> Документация</a>
             </nav>
             <div class="sidebar-footer">
                 <div id="updateIndicator" style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-bottom:8px; cursor:help;" title="Статус автообновления через GitHub">
@@ -51,7 +50,7 @@
                 <div class="search-bar"><ion-icon name="search-outline"></ion-icon><input type="text" id="searchInput" placeholder="Поиск..." oninput="handleSearch()"></div>
                 <div class="topbar-right">
                     <div class="notification-wrapper" id="notifWrapper">
-                        <button class="notif-btn" onclick="toggleNotif()"><ion-icon name="notifications-outline"></ion-icon><span class="notif-badge" id="notifBadge" style="display:none;">0</span></button>
+                        <button class="notif-btn" onclick="toggleNotif(event)"><ion-icon name="notifications-outline"></ion-icon><span class="notif-badge" id="notifBadge" style="display:none;">0</span></button>
                         <div class="notif-dropdown" id="notifDropdown"><div class="notif-header">Уведомления</div><div class="notif-list" id="notifList"><p class="notif-empty">Нет уведомлений</p></div></div>
                     </div>
                     <div id="exportButtons" style="display: flex; gap: 8px;">
@@ -92,8 +91,7 @@
                     <h1>Пользователи</h1>
                     <p>Управление доступом к системе</p>
                 </div>
-                <div class="dashboard-header">
-                    <div></div>
+                <div class="dashboard-header" style="justify-content: flex-end;">
                     <button class="btn-primary" onclick="openUserModal()"><ion-icon name="person-add-outline"></ion-icon> Добавить пользователя</button>
                 </div>
                 <div class="org-grid" id="userGrid"></div>
@@ -112,7 +110,7 @@
             <div id="page-settings" class="page">
                 <div class="page-title"><h1>Настройки</h1><p>Параметры системы</p></div>
                 <div class="settings-grid">
-                    <div class="settings-card">
+                    <div class="settings-card" id="subscriptionSettingsCard" style="display: none;">
                         <h3>Параметры подписки</h3>
                         <form id="settingsForm" onsubmit="saveSettings(event)">
                             <div class="form-group"><label>Подписка по умолчанию (дней)</label><input type="number" id="setSubDays" min="1" max="3650"></div>
@@ -252,6 +250,18 @@
                 <button class="btn-primary" style="background: var(--blue);" onclick="submitRenew(3)">Продлить на 3 дня (Бесплатно)</button>
                 <button class="btn-primary" style="background: var(--green);" onclick="submitRenew(365)">Продлить на 365 дней (Платно)</button>
                 <button class="btn-secondary" onclick="closeRenewModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirm Delete -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-content" style="max-width:400px;">
+            <div class="modal-header"><h2>Подтверждение</h2><button class="close-btn" onclick="closeConfirmModal()"><ion-icon name="close"></ion-icon></button></div>
+            <div class="modal-body" id="confirmBody" style="padding: 20px 0; color: var(--text);">Вы уверены?</div>
+            <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+                <button class="btn-secondary" style="background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:6px;cursor:pointer;" onclick="closeConfirmModal()">Отмена</button>
+                <button class="btn-danger" id="confirmOkBtn" style="background:#EF4444;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">Удалить</button>
             </div>
         </div>
     </div>

@@ -1,4 +1,4 @@
-let organizations=[], healthData={}, token=localStorage.getItem('nvr_token'), role=localStorage.getItem('nvr_role'), currentFilter='all', searchQuery='', currentUserFilter=null;
+let organizations=[], healthData={}, token=localStorage.getItem('nvr_token'), role=localStorage.getItem('nvr_role'), currentFilter='all', searchQuery='', currentUserFilter=null, notifViewed=false;
 function esc(s){if(!s)return'';const d=document.createElement('div');d.appendChild(document.createTextNode(s));return d.innerHTML;}
 
 if(token && !role) {
@@ -14,6 +14,18 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('logoutBtn')?.addEventListener('click',e=>{e.preventDefault();logout();});
     document.addEventListener('click',e=>{if(!document.getElementById('notifWrapper')?.contains(e.target))document.getElementById('notifDropdown')?.classList.remove('show');});
     token?showDashboard():showLogin();
+    
+    // Global confirm modal handlers
+    window.closeConfirmModal = function() {
+        document.getElementById('confirmModal').classList.remove('active');
+    };
+    const okBtn = document.getElementById('confirmOkBtn');
+    if (okBtn) {
+        okBtn.onclick = () => {
+            if (window.confirmCallback) window.confirmCallback();
+            closeConfirmModal();
+        };
+    }
 });
 function showLogin(){document.getElementById('loginScreen').style.display='flex';document.getElementById('appContainer').style.display='none';}
 function showDashboard(){
@@ -40,11 +52,15 @@ function showDashboard(){
         document.getElementById('btnExportMine').style.display='inline-flex';
         document.getElementById('btnExportAll').style.display='inline-flex';
         document.getElementById('btnExportUser').style.display='none';
+        const subCard = document.getElementById('subscriptionSettingsCard');
+        if(subCard) subCard.style.display = 'block';
     }else{
         document.getElementById('navUsers').style.display='none';
         document.getElementById('btnExportMine').style.display='none';
         document.getElementById('btnExportAll').style.display='none';
         document.getElementById('btnExportUser').style.display='inline-flex';
+        const subCard = document.getElementById('subscriptionSettingsCard');
+        if(subCard) subCard.style.display = 'none';
     }
     fetchAll();
     checkUpdateStatus();
@@ -116,14 +132,13 @@ async function checkUpdateStatus() {
 }
 
 // Pages
-function switchPage(page,btn){
+function switchPage(page,btn, keepFilter=false){
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active-page'));
     document.getElementById('page-'+page).classList.add('active-page');
     document.querySelectorAll('.nav-menu a').forEach(a=>a.classList.remove('active'));
     btn.classList.add('active');
     
-    // Clear user filter when leaving dashboard
-    if(page !== 'main') currentUserFilter = null;
+    if(!keepFilter) currentUserFilter = null;
     if(page === 'main') renderGrid(); // Re-render to clear user filter
     if(page==='users') loadUsers();
     if(page==='analytics')loadAnalytics();
@@ -148,10 +163,22 @@ function updateNotif(){
     const list = getFiltered();
     list.forEach(o=>{try{const d=new Date(o.subscription_end_date);if(d<=now)items.push({t:'danger',i:'alert-circle',m:`${o.name} — подписка истекла!`});else if(d<=in30){const days=Math.ceil((d-now)/864e5);items.push({t:'warn',i:'warning',m:`${o.name} — через ${days} дн.`});}}catch{}});
     const badge=document.getElementById('notifBadge'),listEl=document.getElementById('notifList');
-    if(items.length){badge.textContent=items.length;badge.style.display='flex';listEl.innerHTML=items.map(i=>`<div class="notif-item ${i.t}"><ion-icon name="${i.i}-outline"></ion-icon><span>${esc(i.m)}</span></div>`).join('');}
+    if(items.length){
+        badge.textContent=items.length;
+        if(!notifViewed) badge.style.display='flex';
+        listEl.innerHTML=items.map(i=>`<div class="notif-item ${i.t}"><ion-icon name="${i.i}-outline"></ion-icon><span>${esc(i.m)}</span></div>`).join('');
+    }
     else{badge.style.display='none';listEl.innerHTML='<p class="notif-empty">Нет уведомлений</p>';}
 }
-function toggleNotif(){document.getElementById('notifDropdown').classList.toggle('show');}
+function toggleNotif(e){
+    if(e) e.stopPropagation();
+    const dropdown = document.getElementById('notifDropdown');
+    dropdown.classList.toggle('show');
+    if(dropdown.classList.contains('show')) {
+        notifViewed = true;
+        document.getElementById('notifBadge').style.display = 'none';
+    }
+}
 
 // Search & Filter
 function handleSearch(){searchQuery=document.getElementById('searchInput').value.toLowerCase();renderGrid();}
@@ -244,7 +271,19 @@ async function toggleOrg(id){
         setTimeout(async()=>{try{const hR=await api('/api/health');healthData=await hR.json();renderGrid();}catch{}},3500);
     }catch{alert('Ошибка');fetchAll();}
 }
-async function deleteOrg(id){if(!confirm('Удалить безвозвратно?'))return;try{await api(`/api/organizations/${id}`,{method:'DELETE'});fetchAll();}catch{alert('Ошибка');}}
+async function deleteOrg(id){
+    window.confirmCallback = async () => {
+        try{
+            await api(`/api/organizations/${id}`,{method:'DELETE'});
+            fetchAll();
+        }catch(e){
+            console.error(e);
+            alert('Ошибка при удалении');
+        }
+    };
+    document.getElementById('confirmBody').innerText = 'Удалить организацию и всю её историю событий безвозвратно?';
+    document.getElementById('confirmModal').classList.add('active');
+}
 
 // Test Connection
 async function testConn(id){
@@ -434,7 +473,20 @@ async function handleFormSubmit(e){
     const id=document.getElementById('orgId').value;const isEdit=id!=='';
     const cameras = {};
     document.querySelectorAll('.camera-name-input').forEach(i => cameras[i.dataset.code] = i.value.trim());
-    const data={name:document.getElementById('orgName').value,bot_token:document.getElementById('orgToken').value,mail_username:document.getElementById('orgMail').value,mail_password:document.getElementById('orgPass').value,is_active:document.getElementById('orgActive').checked,contact_name:document.getElementById('contactName').value,contact_phone:document.getElementById('contactPhone').value,contact_title:document.getElementById('contactTitle').value,notes:document.getElementById('orgNotes').value,mail_check_interval:document.getElementById('orgMailInterval').value||0,telegram_cooldown:document.getElementById('orgTgCooldown').value||0,cameras:cameras};
+    const data={
+        name:document.getElementById('orgName').value,
+        bot_token:document.getElementById('orgToken').value,
+        mail_username:document.getElementById('orgMail').value,
+        mail_password:document.getElementById('orgPass').value,
+        is_active:document.getElementById('orgActive').checked,
+        contact_name:document.getElementById('contactName').value,
+        contact_phone:document.getElementById('contactPhone').value,
+        contact_title:document.getElementById('contactTitle').value,
+        notes:document.getElementById('orgNotes').value,
+        mail_check_interval:parseInt(document.getElementById('orgMailInterval').value)||0,
+        telegram_cooldown:parseInt(document.getElementById('orgTgCooldown').value)||0,
+        cameras:cameras
+    };
     
     try{
         const r=await api(isEdit?`/api/organizations/${id}`:'/api/organizations',{method:isEdit?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
@@ -495,7 +547,7 @@ function showUserOrgs(id){
     currentUserFilter = id;
     document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
     document.querySelector('.filter-btn').classList.add('active'); // set "All" visual
-    switchPage('main', document.querySelector('.nav-menu a[data-page="main"]'));
+    switchPage('main', document.querySelector('.nav-menu a[data-page="main"]'), true);
     renderGrid();
 }
 
@@ -535,12 +587,15 @@ async function handleUserSubmit(e){
 }
 
 async function deleteUser(id){
-    if(!confirm('Удалить пользователя? Его организации будут перенесены к администратору.')) return;
-    try {
-        await api(`/api/users/${id}`, {method:'DELETE'});
-        loadUsers();
-        fetchAll(); // Refresh organizations in background
-    } catch { alert('Ошибка'); }
+    window.confirmCallback = async () => {
+        try {
+            await api(`/api/users/${id}`, {method:'DELETE'});
+            loadUsers();
+            fetchAll();
+        } catch { alert('Ошибка'); }
+    };
+    document.getElementById('confirmBody').innerText = 'Удалить этого пользователя? Все его организации останутся, но он потеряет к ним доступ.';
+    document.getElementById('confirmModal').classList.add('active');
 }
 
 // Analytics

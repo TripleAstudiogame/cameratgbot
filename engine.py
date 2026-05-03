@@ -194,6 +194,12 @@ def run_organization_loop(org, stop_event):
         cur = db.get_organization(org_id)
         if not cur or not cur['is_active']:
             return
+        end_str = cur.get('subscription_end_date')
+        if end_str:
+            try:
+                if datetime.now() > datetime.fromisoformat(end_str):
+                    return
+            except: pass
         subs = cur['subscribers']
         if not subs:
             return

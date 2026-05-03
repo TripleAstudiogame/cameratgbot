@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 DB_FILE = 'organizations.db'
 
 def _conn():
-    """Get a new DB connection with row factory."""
-    conn = sqlite3.connect(DB_FILE)
+    """Get a new DB connection with row factory and timeout."""
+    conn = sqlite3.connect(DB_FILE, timeout=20)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
@@ -142,7 +142,7 @@ def get_organization(org_id):
     return None
 
 def add_organization(data, user_id=1):
-    conn = sqlite3.connect(DB_FILE)
+    conn = _conn()
     cursor = conn.cursor()
     # Default is 3 days when a user or admin creates an org
     days = 3
@@ -206,7 +206,7 @@ def extend_subscription(org_id, days=None):
         days = int(get_setting('default_subscription_days', '365'))
         
     new_end = current_end + timedelta(days=days)
-    conn = sqlite3.connect(DB_FILE)
+    conn = _conn()
     conn.execute('UPDATE organizations SET subscription_end_date=?, is_active=1 WHERE id=?',
                  (new_end.isoformat(), org_id))
     conn.commit()
@@ -214,7 +214,7 @@ def extend_subscription(org_id, days=None):
     return new_end.isoformat()
 
 def delete_organization(org_id):
-    conn = sqlite3.connect(DB_FILE)
+    conn = _conn()
     conn.execute('DELETE FROM organizations WHERE id=?', (org_id,))
     conn.execute('DELETE FROM events WHERE org_id=?', (org_id,))
     conn.commit()
@@ -226,7 +226,7 @@ def add_subscriber(org_id, chat_id):
         subs = org['subscribers']
         if chat_id not in subs:
             subs.append(chat_id)
-            conn = sqlite3.connect(DB_FILE)
+            conn = _conn()
             conn.execute('UPDATE organizations SET subscribers=? WHERE id=?', (json.dumps(subs), org_id))
             conn.commit()
             conn.close()
@@ -239,7 +239,7 @@ def remove_subscriber(org_id, chat_id):
         subs = org['subscribers']
         if chat_id in subs:
             subs.remove(chat_id)
-            conn = sqlite3.connect(DB_FILE)
+            conn = _conn()
             conn.execute('UPDATE organizations SET subscribers=? WHERE id=?', (json.dumps(subs), org_id))
             conn.commit()
             conn.close()
@@ -250,7 +250,7 @@ def remove_subscriber(org_id, chat_id):
 
 def add_access_request(org_id, chat_id, first_name='', last_name='', phone=''):
     """Add a pending access request. Returns True if new, False if exists."""
-    conn = sqlite3.connect(DB_FILE)
+    conn = _conn()
     existing = conn.execute(
         'SELECT id, status FROM access_requests WHERE org_id=? AND chat_id=?',
         (org_id, chat_id)).fetchone()
@@ -280,8 +280,7 @@ def get_access_requests(org_id, status=None):
 
 def approve_access_request(request_id):
     """Approve a pending request and add chat_id to subscribers."""
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
+    conn = _conn()
     row = conn.execute('SELECT * FROM access_requests WHERE id=?', (request_id,)).fetchone()
     if not row:
         conn.close()
@@ -296,14 +295,14 @@ def approve_access_request(request_id):
 
 def reject_access_request(request_id):
     """Reject and delete a pending request."""
-    conn = sqlite3.connect(DB_FILE)
+    conn = _conn()
     conn.execute('DELETE FROM access_requests WHERE id=?', (request_id,))
     conn.commit()
     conn.close()
 
 def revoke_access(request_id):
     """Revoke an approved user — remove from subscribers and delete request."""
-    conn = sqlite3.connect(DB_FILE)
+    conn = _conn()
     conn.row_factory = sqlite3.Row
     row = conn.execute('SELECT * FROM access_requests WHERE id=?', (request_id,)).fetchone()
     if not row:
@@ -338,7 +337,7 @@ def has_pending_request(org_id, chat_id):
 
 def add_event(org_id, event_type, message):
     """event_type: 'notification', 'error', 'subscriber', 'system'"""
-    conn = sqlite3.connect(DB_FILE)
+    conn = _conn()
     conn.execute('INSERT INTO events (org_id, event_type, message, created_at) VALUES (?,?,?,?)',
                  (org_id, event_type, message, datetime.now().isoformat()))
     conn.commit()
@@ -402,7 +401,7 @@ def get_setting(key, default=''):
     return row['value'] if row else default
 
 def set_setting(key, value):
-    conn = sqlite3.connect(DB_FILE)
+    conn = _conn()
     conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?,?)', (key, str(value)))
     conn.commit()
     conn.close()
@@ -435,7 +434,7 @@ def get_users():
 
 def add_user(username, password_hash, name, phone):
     try:
-        conn = sqlite3.connect(DB_FILE)
+        conn = _conn()
         cursor = conn.cursor()
         cursor.execute(
             'INSERT INTO users (username, password_hash, name, phone, role) VALUES (?, ?, ?, ?, ?)',
@@ -449,13 +448,13 @@ def add_user(username, password_hash, name, phone):
         return None # Username exists
 
 def update_user_password(user_id, password_hash):
-    conn = sqlite3.connect(DB_FILE)
+    conn = _conn()
     conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (password_hash, user_id))
     conn.commit()
     conn.close()
 
 def delete_user(user_id):
-    conn = sqlite3.connect(DB_FILE)
+    conn = _conn()
     cursor = conn.cursor()
     # Find admin user id
     admin_row = cursor.execute("SELECT id FROM users WHERE role = 'admin' LIMIT 1").fetchone()
