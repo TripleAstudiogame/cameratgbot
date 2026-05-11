@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Документация — Report Camera NVR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+    <style>
+        :root {
+            --bg: #000;
+            --surface: #0A0A0A;
+            --card: #111;
+            --border: #1F1F1F;
+            --primary: #0070F3;
+            --text: #EDEDED;
+            --muted: #71717A;
+            --blue: #3B82F6;
+            --green: #10B981;
+            --font: 'Inter', system-ui, sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 15px;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Topbar */
+        .topbar {
+            height: 60px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .topbar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 16px;
+            text-decoration: none;
+            color: #FFF;
+        }
+        .topbar-logo ion-icon { color: var(--blue); font-size: 20px; }
+
+        /* Layout */
+        .container {
+            display: flex;
+            max-width: 1200px;
+            margin: 0 auto;
+            min-height: calc(100vh - 60px);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            padding: 32px 24px;
+            border-right: 1px solid var(--border);
+            position: sticky;
+            top: 60px;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+        .nav-group { margin-bottom: 24px; }
+        .nav-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+        .nav-link {
+            display: block;
+            color: #A1A1AA;
+            text-decoration: none;
+            padding: 6px 0;
+            font-size: 14px;
+            transition: 0.15s;
+        }
+        .nav-link:hover, .nav-link.active { color: #FFF; }
+
+        /* Content */
+        .content { flex: 1; padding: 48px 64px 80px; max-width: 800px; }
+        h1 { font-size: 32px; font-weight: 700; margin-bottom: 16px; }
+        h2 { font-size: 24px; font-weight: 600; margin: 40px 0 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px;}
+        h3 { font-size: 18px; font-weight: 600; margin: 24px 0 12px; }
+        p { margin-bottom: 16px; color: #A1A1AA; }
+        
+        .lead { font-size: 18px; color: var(--muted); margin-bottom: 32px; }
+
+        /* Components */
+        code {
+            background: var(--border);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Consolas, monospace;
+            font-size: 13px;
+            color: #E4E4E7;
+        }
+        pre {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 24px;
+        }
+        pre code { background: transparent; padding: 0; color: #A1A1AA; }
+        
+        .alert {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid var(--blue);
+            padding: 16px;
+            border-radius: 4px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+        }
+        .alert.warning { background: rgba(245, 158, 11, 0.1); border-color: #F59E0B; }
+        .alert.success { background: rgba(16, 185, 129, 0.1); border-color: var(--green); }
+        .alert ion-icon { font-size: 24px; color: var(--blue); flex-shrink: 0; }
+        .alert.warning ion-icon { color: #F59E0B; }
+        .alert.success ion-icon { color: var(--green); }
+        .alert p { margin: 0; color: #E4E4E7; }
+
+        /* Step Guide */
+        .step { display: flex; gap: 16px; margin-bottom: 24px; }
+        .step-number {
+            width: 32px; height: 32px;
+            background: var(--blue); color: #fff;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; flex-shrink: 0;
+        }
+        .step-content h3 { margin-top: 0; margin-bottom: 8px; color: #fff; }
+
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 20px; }
+            .content { padding: 32px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="topbar">
+        <a href="/" class="topbar-logo">
+            <ion-icon name="videocam-outline"></ion-icon>
+            Report Camera NVR
+        </a>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="nav-group">
+                <div class="nav-title">Обзор</div>
+                <a href="#intro" class="nav-link active">Введение</a>
+                <a href="#install" class="nav-link">Установка за 1 клик</a>
+            </div>
+            <div class="nav-group">
+                <div class="nav-title">Движок и ИИ</div>
+                <a href="#parsers" class="nav-link">Парсинг писем (ИИ)</a>
+                <a href="#heic" class="nav-link">Конвертация Apple HEIC</a>
+                <a href="#db" class="nav-link">База данных SQLite WAL</a>
+            </div>
+            <div class="nav-group">
+                <div class="nav-title">CI/CD и Безопасность</div>
+                <a href="#cicd" class="nav-link">GitHub Auto-Updater</a>
+                <a href="#security" class="nav-link">Политики безопасности</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <h1 id="intro">Документация Report Camera</h1>
+            <p class="lead">Полное руководство по интеллектуальному мониторингу NVR камер, автоматизированной установке и архитектуре.</p>
+
+            <h2 id="install">Установка на Windows Server за 1 клик (1-Click Install)</h2>
+            <p>Мы полностью избавились от ручной установки зависимостей (Python, Git, скрипты брандмауэра и т.д.). Теперь система устанавливает себя сама даже на абсолютно "голый" Windows Server 2019.</p>
+
+            <div class="alert success">
+                <ion-icon name="rocket-outline"></ion-icon>
+                <div>
+                    <strong>Всё, что вам нужно:</strong>
+                    <p>Просто скачайте репозиторий (или файлы проекта) на сервер и запустите файл <code>setup_server.bat</code>.</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Запуск установщика</h3>
+                    <p>Дважды кликните по <code>setup_server.bat</code>. Он запросит права администратора и запустит главный скрипт развертывания.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Автоматическое скачивание зависимостей</h3>
+                    <p>Скрипт проверит наличие <strong>Python 3.11</strong> и <strong>Git</strong>. Если их нет — он сам скачает официальные установщики из интернета и установит их в "тихом" (Silent) режиме, не требуя от вас нажимать "Далее". Также он скачает утилиту <strong>NSSM</strong> для создания системной службы.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Настройка окружения и Firewall</h3>
+                    <p>Скрипт сам откроет порт <code>6565</code> в Брандмауэре Windows, создаст виртуальное окружение <code>venv</code> и установит все Python-библиотеки.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h3>Фоновые службы и Автообновление</h3>
+                    <p>Скрипт зарегистрирует приложение как системную службу <code>ReportCamera</code> (она будет сама стартовать при перезагрузке сервера). А также создаст невидимую задачу в Планировщике Задач, которая каждые 5 минут будет проверять GitHub на обновления.</p>
+                </div>
+            </div>
+
+            <h2 id="parsers">Парсинг писем (Искусственный интеллект)</h2>
+            <p>Сервер асинхронно подключается к IMAP-серверу Mail.ru и анализирует тему письма, чтобы понять, какой ИИ-триггер сработал на камере:</p>
+            <ul>
+                <li><strong>Человек:</strong> Теги <code>Person Alarm</code>, <code>Human</code>, <code>PD</code>. Формирует уведомление с 🧍‍♂️ иконкой.</li>
+                <li><strong>Транспорт:</strong> Теги <code>Vehicle</code>, <code>License Plate</code>, <code>Motor Vehicle</code>. Если ИИ распознал гос.номер авто (например, <code>[01A123BC]</code>), парсер вырежет его из текста и выделит жирным.</li>
+                <li><strong>Движение:</strong> Теги <code>Motion</code>, <code>MD</code>. Стандартный детектор движения.</li>
+            </ul>
+
+            <h2 id="heic">Конвертация Apple HEIC "на лету"</h2>
+            <p>NVR устройства, настроенные через экосистему Apple, часто присылают скриншоты в формате <code>.heic</code> или <code>.heif</code>. Telegram API не поддерживает эти форматы (он выдаст ошибку при отправке). </p>
+            <p><strong>Решение:</strong> Модуль <code>pillow_heif</code> перехватывает такие файлы. Они загружаются в оперативную память (через <code>io.BytesIO</code>) и мгновенно конвертируются в <code>.jpeg</code>. Это полностью избавляет SSD диск сервера от операций записи временных файлов.</p>
+
+            <h2 id="db">Архитектура Базы Данных (SQLite WAL)</h2>
+            <p>В проекте используется встроенная БД <code>SQLite</code>. Чтобы предотвратить ошибку <code>database is locked</code> при одновременных запросах (когда фоновый движок проверяет почту, а админ в это же время редактирует настройки на сайте), мы включили режим <strong>Write-Ahead Logging (WAL)</strong>.</p>
+            <p>WAL позволяет читателям (чтение БД) не блокировать писателей (запись в БД) и наоборот, обеспечивая надежную конкурентную работу.</p>
+
+            <h2 id="cicd">GitHub Auto-Updater (Автообновления)</h2>
+            <p>Вам больше не нужно подключаться к серверу (RDP), чтобы загрузить новые фичи.</p>
+            <div class="alert">
+                <ion-icon name="sync-outline"></ion-icon>
+                <div>
+                    <strong>Процесс работы:</strong>
+                    <p>1. Вы пишете код на своем ноутбуке и делаете <code>git push origin main</code>.<br>
+                       2. Сервер каждые 5 минут делает <code>git fetch</code>.<br>
+                       3. Если есть новый код, сервер <b>останавливает службу</b>, скачивает код, делает <code>pip install</code> и <b>запускает службу</b>.</p>
+                </div>
+            </div>
+            <p>Защита данных: файлы <code>.env</code>, <code>organizations.db</code> и логи защищены файлом <code>.gitignore</code>, поэтому автообновление их никогда не удалит.</p>
+
+            <h2 id="security">Политики безопасности</h2>
+            <ul>
+                <li><strong>Маскировка:</strong> Токены ботов (<code>861507***sZl4</code>) и пароли (<code>••••••••</code>) замаскированы в API.</li>
+                <li><strong>Хеши:</strong> Пароль администратора хранится в виде <code>PBKDF2-HMAC-SHA256</code> хеша (в 100 000 итераций).</li>
+                <li><strong>HTTP Headers:</strong> На всех ответах сервера стоят заголовки <code>Content-Security-Policy</code>, <code>X-Frame-Options: DENY</code>, и <code>HSTS</code>, защищающие панель от XSS и Clickjacking.</li>
+            </ul>
+
+        </div>
+    </div>
+
+    <script>
+        const links = document.querySelectorAll('.nav-link');
+        const sections = document.querySelectorAll('h1, h2');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            links.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').substring(1) === current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
