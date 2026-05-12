@@ -1,6 +1,6 @@
 # ============================================================
-#  Автономная установка: Python, venv, зависимости, .env, firewall
-#  Затем можно запускать start_report_camera.bat (окно, как на обычном ПК)
+#  Автономная установка: Python, venv, зависимости, .env, firewall,
+#  автозапуск при включении сервера (планировщик) + первый запуск в окне
 # ============================================================
 
 $ErrorActionPreference = "Stop"
@@ -125,6 +125,37 @@ try {
     Write-Warning "Не удалось настроить брандмауэр: $($_.Exception.Message). При необходимости откройте порт 6565 вручную."
 }
 
+Write-Step "Автозапуск после перезагрузки Windows"
+$taskName = "ReportCamera_AutoStart"
+$nssmService = Get-Service -Name "ReportCamera" -ErrorAction SilentlyContinue
+if ($nssmService) {
+    Write-Warning @"
+Уже установлена служба «ReportCamera» (режим NSSM из setup_as_service.bat).
+Автозапуск через планировщик НЕ добавлен — иначе при старте поднялись бы ДВА процесса на порту 6565.
+Отключите службу в services.msc, затем снова запустите setup_server.bat — или пользуйтесь только службой.
+"@
+} else {
+    try {
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    } catch {}
+    try {
+        $pyExe = Join-Path $ScriptDir "venv\Scripts\python.exe"
+        $appPy = Join-Path $ScriptDir "app.py"
+        $action = New-ScheduledTaskAction -Execute $pyExe -Argument "`"$appPy`"" -WorkingDirectory $ScriptDir
+        $trigger = New-ScheduledTaskTrigger -AtStartup
+        if ($trigger.PSObject.Properties.Name -contains "Delay") {
+            $trigger.Delay = "PT45S"
+        }
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
+        $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal `
+            -Description "Report Camera: веб-панель и бот после перезагрузки (режим setup_server.bat)" -Force | Out-Null
+        Write-Host "Планировщик: задача «$taskName» — запуск при старте Windows (~45 с задержкой)." -ForegroundColor Green
+    } catch {
+        Write-Warning "Не удалось создать задачу автозапуска: $($_.Exception.Message). Запускайте start_report_camera.bat вручную после перезагрузки."
+    }
+}
+
 Write-Step "Создание ярлыка запуска на рабочем столе"
 $startBat = Join-Path $ScriptDir "start_report_camera.bat"
 try {
@@ -150,7 +181,11 @@ Write-Host "`n=========================================================" -Foregr
 Write-Host " УСТАНОВКА ЗАВЕРШЕНА" -ForegroundColor Green
 Write-Host " Откройте в браузере: http://localhost:6565" -ForegroundColor Yellow
 Write-Host " Логин по умолчанию смотрите в credentials.txt после первого запуска." -ForegroundColor Gray
-Write-Host " Сейчас откроется отдельное окно с сервером — его не закрывайте." -ForegroundColor Yellow
+Write-Host " Сейчас откроется окно с сервером (первый раз) — можно свернуть; после перезагрузки окно не обязательно." -ForegroundColor Yellow
+Write-Host " После перезагрузки сервер поднимется сам (задача планировщика ReportCamera_AutoStart)," -ForegroundColor Yellow
+Write-Host " если не используете параллельно службу NSSM «ReportCamera»." -ForegroundColor Yellow
+Write-Host " Если программа уже поднята автоматически после загрузки, второй раз ярлык" -ForegroundColor Gray
+Write-Host " запускать не нужно (будет конфликт порта 6565)." -ForegroundColor Gray
 Write-Host "=========================================================`n" -ForegroundColor Cyan
 
 Start-Sleep -Seconds 1
