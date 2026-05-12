@@ -6,7 +6,7 @@ import html
 import re
 import json
 import socket
-import ssl
+import os
 from datetime import datetime, timedelta
 import telebot
 import queue
@@ -15,12 +15,14 @@ from PIL import Image
 import pillow_heif
 
 import db
+from paths import PROJECT_ROOT
 
 pillow_heif.register_heif_opener()
 
 from logging.handlers import RotatingFileHandler
 
-_log_handler = RotatingFileHandler("bot.log", maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
+_log_path = PROJECT_ROOT / "bot.log"
+_log_handler = RotatingFileHandler(str(_log_path), maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -227,14 +229,30 @@ def run_organization_loop(org, stop_event):
     try:
         _run_organization_loop_inner(org, stop_event)
     except Exception as e:
-        logging.error(f"[{org_name}] КРИТИЧЕСКАЯ ОШИБКА в потоке организации: {e}", exc_info=True)
-        _set_health(org_id, imap_ok=False, bot_ok=False, last_error=f"CRASH: {e}")
-        db.add_event(org_id, 'error', f'Критическая ошибка: {str(e)[:200]}')
+        logging.exception("[%s] КРИТИЧЕСКАЯ ОШИБКА в потоке организации id=%s: %s", org_name, org_id, e)
+        with _global_lock:
+            ec = _health.get(org_id, {}).get('error_count', 0) + 1
+        _set_health(
+            org_id,
+            imap_ok=False,
+            bot_ok=False,
+            last_check=datetime.now().isoformat(),
+            last_error=f"CRASH: {e}"[:500],
+            error_count=ec,
+        )
+        try:
+            db.add_event(org_id, 'error', f'Критическая ошибка: {str(e)[:200]}')
+        except Exception:
+            pass
 
 
 def _run_organization_loop_inner(org, stop_event):
     org_id = org['id']
     org_name = org['name']
+    logging.info(
+        "[%s] Старт цикла org id=%s | cwd=%s | PROJECT_ROOT=%s",
+        org_name, org_id, os.getcwd(), PROJECT_ROOT,
+    )
 
     # ── Step 1: Wait for network ──
     if not _wait_for_network(org_name, stop_event):
@@ -647,13 +665,15 @@ def _stop_all():
 
 
 def start_engine():
-    logging.info("=== Запуск движка Report Camera ===")
     orgs = db.get_organizations()
-    active = [o for o in orgs if o['is_active']]
-    logging.info(f"Найдено организаций: {len(orgs)} (активных: {len(active)})")
+    active = [o for o in orgs if o.get('is_active')]
+    logging.info(
+        "=== Запуск движка Report Camera === | всего организаций=%s активных=%s | DB=%s | bot.log=%s",
+        len(orgs), len(active), db.DB_FILE, _log_path,
+    )
 
     if not active:
-        logging.warning("Нет активных организаций для запуска.")
+        logging.warning("Нет активных организаций — индикаторы health пусты, polling не запущен.")
         return
 
     for org in active:
@@ -661,7 +681,10 @@ def start_engine():
         _org_stop_events[org['id']] = ev
         t = threading.Thread(target=run_organization_loop, args=(org, ev), daemon=True, name=f"org-{org['id']}")
         t.start()
-        logging.info(f"Поток организации '{org['name']}' (ID:{org['id']}) запущен.")
+        logging.info(
+            "Поток организации id=%s name=%r запущен (подписчиков=%s).",
+            org['id'], org['name'], len(org.get('subscribers') or []),
+        )
 
 
 def reload_engine():

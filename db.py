@@ -1,9 +1,10 @@
 import sqlite3
 import json
-import os
 from datetime import datetime, timedelta
 
-DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'organizations.db')
+from paths import PROJECT_ROOT
+
+DB_FILE = str(PROJECT_ROOT / "organizations.db")
 
 def _conn():
     """Get a new DB connection with row factory and timeout."""

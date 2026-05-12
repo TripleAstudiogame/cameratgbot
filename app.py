@@ -26,12 +26,13 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from dotenv import load_dotenv
 
+from paths import PROJECT_ROOT
 import db
 import engine
 import logging
 logger = logging.getLogger("app")
 
-load_dotenv()
+load_dotenv(PROJECT_ROOT / ".env")
 
 # ── Configuration ──
 PORT = int(os.getenv("PORT", "6565"))
@@ -68,28 +69,27 @@ if not ADMIN_PASSWORD_HASH:
 @asynccontextmanager
 async def lifespan(app):
     from logging.handlers import RotatingFileHandler
-    log_handler = RotatingFileHandler("bot.log", maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
+    _log_path = PROJECT_ROOT / "bot.log"
+    log_handler = RotatingFileHandler(str(_log_path), maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s',
                         handlers=[log_handler, logging.StreamHandler()])
-    logging.info("Starting Report Camera Engine...")
-    logging.info(f"Port: {PORT} | Hosts: {ALLOWED_HOSTS}")
-    logging.info(f"CWD: {os.getcwd()}")
-    logging.info(f"Script dir: {_SCRIPT_DIR}")
-    logging.info(f"Python: {sys.version}")
-    logging.info(f".env exists: {os.path.exists('.env')}")
-    logging.info(f"DB file exists: {os.path.exists(db.DB_FILE)}")
-    logging.info(f"web/ exists: {os.path.isdir('web')}")
+    logging.info("=== Report Camera startup ===")
+    logging.info("Port: %s | Hosts: %s", PORT, ALLOWED_HOSTS)
+    logging.info("cwd=%s | SCRIPT_DIR=%s | PROJECT_ROOT=%s", os.getcwd(), _SCRIPT_DIR, PROJECT_ROOT)
+    logging.info("Python: %s", sys.version)
+    logging.info("DB_FILE=%s exists=%s", db.DB_FILE, os.path.isfile(db.DB_FILE))
+    logging.info(".env path=%s exists=%s", PROJECT_ROOT / ".env", (PROJECT_ROOT / ".env").is_file())
+    logging.info("bot.log path=%s", _log_path)
+    logging.info("web/ exists: %s", os.path.isdir(PROJECT_ROOT / "web"))
 
-    # Network diagnostics at startup
     import socket
     for host, port, label in [("imap.mail.ru", 993, "IMAP"), ("api.telegram.org", 443, "Telegram")]:
         try:
             sock = socket.create_connection((host, port), timeout=10)
             sock.close()
-            logging.info(f"Сеть: {label} ({host}:{port}) — ✅ доступен")
+            logging.info("Сеть: %s (%s:%s) — доступен", label, host, port)
         except Exception as e:
-            logging.warning(f"Сеть: {label} ({host}:{port}) — ❌ недоступен: {e}")
-
+            logging.warning("Сеть: %s (%s:%s) — недоступен: %s", label, host, port, e)
     # Initialize Admin User if not exists
     admin = db.get_user_by_username(ADMIN_USERNAME)
     import sqlite3
@@ -110,7 +110,7 @@ async def lifespan(app):
 
     # Write credentials to a text file for easy debugging
     try:
-        with open("credentials.txt", "w", encoding="utf-8") as f:
+        with open(PROJECT_ROOT / "credentials.txt", "w", encoding="utf-8") as f:
             f.write(f"Логин: {ADMIN_USERNAME}\n")
             if os.getenv("ADMIN_PASSWORD_HASH"):
                 f.write("Пароль: [Тот, чей хэш указан в файле .env]\n")
@@ -290,9 +290,9 @@ def delete_user(uid: int, u: dict = Depends(get_user)):
 @app.get("/api/system/update-status")
 def get_update_status(u: dict = Depends(get_user)):
     try:
-        if not os.path.exists("update.log"):
+        if not os.path.exists(PROJECT_ROOT / "update.log"):
             return {"status": "Ожидание первого запуска..."}
-        with open("update.log", "r", encoding="utf-8") as f:
+        with open(PROJECT_ROOT / "update.log", "r", encoding="utf-8") as f:
             lines = f.readlines()
             if not lines:
                 return {"status": "Нет данных"}
@@ -356,7 +356,7 @@ def toggle_org(oid: int, background_tasks: BackgroundTasks, u: dict = Depends(ge
     org = db.get_organization(oid)
     if not org or (u["role"] != "admin" and org.get("user_id") != u["id"]): raise HTTPException(403)
     new = not org['is_active']
-    import sqlite3; conn=sqlite3.connect('organizations.db')
+    import sqlite3; conn=sqlite3.connect(db.DB_FILE)
     conn.execute('UPDATE organizations SET is_active=? WHERE id=?',(int(new),oid)); conn.commit(); conn.close()
     db.add_event(oid, 'system', f'Бот {"запущен" if new else "остановлен"}')
     background_tasks.add_task(engine.reload_engine)

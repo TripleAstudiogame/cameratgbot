@@ -3,8 +3,8 @@
 #   Скрипт для CI/CD на Windows Server
 # ============================================================
 
-$repoDir = "C:\Amir\mailru_integrator\MailToTelegram"
-$logFile = "$repoDir\update.log"
+$repoDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$logFile = Join-Path $repoDir "update.log"
 
 function Log-Update ($Message) {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
