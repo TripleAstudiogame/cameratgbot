@@ -27,12 +27,18 @@ from slowapi.middleware import SlowAPIMiddleware
 from dotenv import load_dotenv
 
 from paths import PROJECT_ROOT
-import db
-import engine
-import logging
-logger = logging.getLogger("app")
 
 load_dotenv(PROJECT_ROOT / ".env")
+
+import logging
+from logging_config import configure_application_logging
+
+configure_application_logging()
+
+import db
+import engine
+
+logger = logging.getLogger("app")
 
 # ── Configuration ──
 PORT = int(os.getenv("PORT", "6565"))
@@ -68,11 +74,7 @@ if not ADMIN_PASSWORD_HASH:
 
 @asynccontextmanager
 async def lifespan(app):
-    from logging.handlers import RotatingFileHandler
     _log_path = PROJECT_ROOT / "bot.log"
-    log_handler = RotatingFileHandler(str(_log_path), maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s',
-                        handlers=[log_handler, logging.StreamHandler()])
     logging.info("=== Report Camera startup ===")
     logging.info("Port: %s | Hosts: %s", PORT, ALLOWED_HOSTS)
     logging.info("cwd=%s | SCRIPT_DIR=%s | PROJECT_ROOT=%s", os.getcwd(), _SCRIPT_DIR, PROJECT_ROOT)
@@ -83,7 +85,7 @@ async def lifespan(app):
     logging.info("web/ exists: %s", os.path.isdir(PROJECT_ROOT / "web"))
 
     import socket
-    for host, port, label in [("imap.mail.ru", 993, "IMAP"), ("api.telegram.org", 443, "Telegram")]:
+    for host, port, label in [(engine.IMAP_HOST, 993, "IMAP"), ("api.telegram.org", 443, "Telegram")]:
         try:
             sock = socket.create_connection((host, port), timeout=10)
             sock.close()
@@ -120,7 +122,11 @@ async def lifespan(app):
         pass
 
     engine.start_engine()
-    yield
+    try:
+        yield
+    finally:
+        logging.info("Завершение приложения: остановка движка…")
+        engine.shutdown_engine()
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -160,7 +166,7 @@ async def security_headers(request: Request, call_next):
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
         "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; "
         "img-src 'self' data: https://unpkg.com https://cdn.jsdelivr.net; "
-        "connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net; "
+        "connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com; "
         "frame-src 'self'; "
         "media-src 'self';"
     )
@@ -321,7 +327,7 @@ def list_orgs(user_id: int = None, u: dict = Depends(get_user)):
     else:
         orgs = db.get_organizations(uid)
     
-    print(f"[DEBUG] User {u.get('username')} (ID: {uid}, Role: {role}) requested orgs. Found: {len(orgs)}")
+    logger.debug("User %s (ID: %s, Role: %s) requested orgs. Found: %s", u.get("username"), uid, role, len(orgs))
     return [_mask_org(o) for o in orgs]
 
 @app.post("/api/organizations")

@@ -19,19 +19,13 @@ from paths import PROJECT_ROOT
 
 pillow_heif.register_heif_opener()
 
-from logging.handlers import RotatingFileHandler
-
+IMAP_HOST = (os.getenv("MAIL_IMAP_HOST", "imap.mail.ru") or "imap.mail.ru").strip() or "imap.mail.ru"
 _log_path = PROJECT_ROOT / "bot.log"
-_log_handler = RotatingFileHandler(str(_log_path), maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[_log_handler, logging.StreamHandler()]
-)
 
 # ── Shared state ──
 _org_stop_events = {}   # org_id -> threading.Event
 _org_threads = {}       # org_id -> [t1, t2, t3]
+_org_supervisors = []   # top-level per-org supervisor threads (joined on shutdown)
 _org_bots = {}          # org_id -> TeleBot instance (for stop_polling)
 _global_lock = threading.Lock()
 _reload_lock = threading.Lock()  # prevents concurrent reloads
@@ -70,9 +64,9 @@ def _check_network(host, port, timeout=10):
         return False, str(e)
 
 def _wait_for_network(org_name, stop_event, max_retries=30, delay=10):
-    """Wait until both imap.mail.ru:993 and api.telegram.org:443 are reachable."""
+    """Wait until IMAP host:993 and api.telegram.org:443 are reachable."""
     targets = [
-        ("imap.mail.ru", 993, "IMAP"),
+        (IMAP_HOST, 993, "IMAP"),
         ("api.telegram.org", 443, "Telegram API"),
     ]
     for attempt in range(1, max_retries + 1):
@@ -186,7 +180,7 @@ def test_connection(org):
     
     # Test IMAP
     try:
-        with MailBox('imap.mail.ru').login(org['mail_username'], org['mail_password']) as mb:
+        with MailBox(IMAP_HOST).login(org['mail_username'], org['mail_password']) as mb:
             mb.folder.list()
         result['imap_ok'] = True
     except Exception as e:
@@ -209,7 +203,7 @@ def test_connection(org):
 def mark_all_as_read(org):
     org_name = org['name']
     try:
-        with MailBox('imap.mail.ru').login(org['mail_username'], org['mail_password']) as mailbox:
+        with MailBox(IMAP_HOST).login(org['mail_username'], org['mail_password']) as mailbox:
             uids = []
             for msg in mailbox.fetch(AND(seen=False), mark_seen=False):
                 if "network video recorder" in (msg.subject + msg.text).lower():
@@ -330,7 +324,7 @@ def _run_organization_loop_inner(org, stop_event):
         return
 
     try:
-        with MailBox('imap.mail.ru').login(mail_user, mail_pass) as mb:
+        with MailBox(IMAP_HOST).login(mail_user, mail_pass) as mb:
             mb.folder.list()
         logging.info(f"[{org_name}] IMAP подключение проверено ✅")
     except Exception as e:
@@ -436,7 +430,7 @@ def _run_organization_loop_inner(org, stop_event):
         if not subs:
             return
         try:
-            with MailBox('imap.mail.ru').login(org['mail_username'], org['mail_password']) as mailbox:
+            with MailBox(IMAP_HOST).login(org['mail_username'], org['mail_password']) as mailbox:
                 _set_health(org_id, imap_ok=True, last_check=datetime.now().isoformat(), last_error=None)
                 for msg in mailbox.fetch(AND(seen=False), mark_seen=True):
                     combined_text = msg.subject + "\n" + msg.text
@@ -606,8 +600,8 @@ def _run_organization_loop_inner(org, stop_event):
                 if stop_event.is_set(): break
                 time.sleep(1)
 
-    t1=threading.Thread(target=mail_scheduler,daemon=True,name=f"mail-{org_id}")
-    t2=threading.Thread(target=telegram_sender,daemon=True,name=f"tg-{org_id}")
+    t1=threading.Thread(target=mail_scheduler,daemon=False,name=f"mail-{org_id}")
+    t2=threading.Thread(target=telegram_sender,daemon=False,name=f"tg-{org_id}")
     t1.start(); t2.start()
 
     def run_polling():
@@ -626,15 +620,14 @@ def _run_organization_loop_inner(org, stop_event):
                     time.sleep(1)
         logging.info(f"[{org_name}] Polling остановлен.")
 
-    t3=threading.Thread(target=run_polling,daemon=True,name=f"poll-{org_id}")
+    t3=threading.Thread(target=run_polling,daemon=False,name=f"poll-{org_id}")
     t3.start()
     logging.info(f"[{org_name}] Запущен (3 потока)")
 
     with _global_lock:
         _org_threads[org_id]=[t1,t2,t3]
 
-    # Keep this thread alive while children are running
-    # This prevents daemon threads from dying prematurely
+    # Keep this thread alive while children are running (workers не daemon — корректное завершение)
     while not stop_event.is_set():
         time.sleep(1)
 
@@ -653,15 +646,22 @@ def _stop_all():
             except Exception:
                 pass
         
-        # 3. Wait for threads to finish
+        # 3. Wait for mail / tg / poll threads
         for org_id, threads in _org_threads.items():
             for t in threads:
                 t.join(timeout=5)
-        
+
         _org_stop_events.clear()
         _org_threads.clear()
         _org_bots.clear()
         _health.clear()
+
+    supervisors = []
+    with _global_lock:
+        supervisors.extend(_org_supervisors)
+        _org_supervisors.clear()
+    for t in supervisors:
+        t.join(timeout=20)
 
 
 def start_engine():
@@ -679,7 +679,11 @@ def start_engine():
     for org in active:
         ev = threading.Event()
         _org_stop_events[org['id']] = ev
-        t = threading.Thread(target=run_organization_loop, args=(org, ev), daemon=True, name=f"org-{org['id']}")
+        t = threading.Thread(
+            target=run_organization_loop, args=(org, ev), daemon=False, name=f"org-{org['id']}"
+        )
+        with _global_lock:
+            _org_supervisors.append(t)
         t.start()
         logging.info(
             "Поток организации id=%s name=%r запущен (подписчиков=%s).",
@@ -699,3 +703,14 @@ def reload_engine():
         logging.info("Движок перезапущен.")
     finally:
         _reload_lock.release()
+
+
+def shutdown_engine():
+    """Остановка при завершении процесса (uvicorn lifespan)."""
+    logging.info("shutdown_engine: остановка потоков…")
+    acquired = _reload_lock.acquire(timeout=120)
+    try:
+        _stop_all()
+    finally:
+        if acquired:
+            _reload_lock.release()
