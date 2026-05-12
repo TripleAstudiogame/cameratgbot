@@ -608,6 +608,20 @@ def _run_organization_loop_inner(org, stop_event):
         _set_health(org_id, bot_ok=True)
         while not stop_event.is_set():
             try:
+                # Если для токена когда-то включали webhook, getUpdates (polling) не получает сообщения.
+                try:
+                    wh = bot.get_webhook_info()
+                    url = (getattr(wh, "url", None) or "").strip()
+                    if url:
+                        logging.warning(
+                            "[%s] Обнаружен webhook %r — отключаем, иначе бот не видит личные сообщения (polling).",
+                            org_name,
+                            url,
+                        )
+                    bot.remove_webhook()
+                    time.sleep(0.5)
+                except Exception as e:
+                    logging.warning("[%s] Проверка/сброс webhook: %s", org_name, e)
                 bot.polling(non_stop=True, timeout=30, long_polling_timeout=20)
             except Exception as e:
                 if stop_event.is_set():
