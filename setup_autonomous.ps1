@@ -1,6 +1,6 @@
-# ============================================================
-#  Автономная установка: Python, venv, зависимости, .env, firewall,
-#  автозапуск при включении сервера (планировщик) + первый запуск в окне
+﻿# ============================================================
+#  Standalone setup: Python, venv, deps, .env, firewall,
+#  startup task after reboot + first run window
 # ============================================================
 
 $ErrorActionPreference = "Stop"
@@ -20,7 +20,6 @@ function Update-ProcessPathFromMachine {
 }
 
 function Find-PythonExe {
-    $candidates = @()
     foreach ($name in @("python", "py")) {
         try {
             $cmd = Get-Command $name -ErrorAction Stop
@@ -48,13 +47,13 @@ function Ensure-Python {
     $found = Find-PythonExe
     if ($found) { return $found }
 
-    Write-Host "Python не найден. Скачиваю Python 3.11 (тихая установка для всех пользователей)..." -ForegroundColor Yellow
+    Write-Host "Python not found. Downloading Python 3.11 (silent, all users)..." -ForegroundColor Yellow
     $pyUrl = "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe"
     $pyInstaller = Join-Path $env:TEMP "python-installer-report-camera.exe"
     Invoke-WebRequest -Uri $pyUrl -OutFile $pyInstaller
     $proc = Start-Process -FilePath $pyInstaller -ArgumentList "/quiet", "InstallAllUsers=1", "PrependPath=1", "Include_pip=1" -Wait -PassThru
     if ($proc.ExitCode -ne 0) {
-        throw "Установка Python завершилась с кодом $($proc.ExitCode)."
+        throw "Python installer exit code: $($proc.ExitCode)"
     }
     Remove-Item $pyInstaller -Force -ErrorAction SilentlyContinue
     Update-ProcessPathFromMachine
@@ -62,16 +61,16 @@ function Ensure-Python {
 
     $found = Find-PythonExe
     if (-not $found) {
-        throw "Python установлен, но не найден в PATH. Перезапустите окно команд или ПК и снова запустите setup_server.bat."
+        throw "Python installed but not in PATH. Reboot or open a new cmd, then run setup_server.bat again."
     }
     return $found
 }
 
-Write-Step "Проверка Python"
+Write-Step "Python check"
 $py = Ensure-Python
-Write-Host "Используется: $($py.Exe)" -ForegroundColor Green
+Write-Host "Using: $($py.Exe)" -ForegroundColor Green
 
-Write-Step "Виртуальное окружение venv"
+Write-Step "venv"
 $venvPy = Join-Path $ScriptDir "venv\Scripts\python.exe"
 if (-not (Test-Path $venvPy)) {
     $venvArgs = @()
@@ -79,14 +78,14 @@ if (-not (Test-Path $venvPy)) {
     $venvArgs += "-m", "venv", "$ScriptDir\venv"
     & $py.Exe @venvArgs
 }
-Write-Host "venv готово." -ForegroundColor Green
+Write-Host "venv OK." -ForegroundColor Green
 
-Write-Step "Установка зависимостей (pip)"
+Write-Step "pip install -r requirements.txt"
 & $venvPy "-m", "pip", "install", "--upgrade", "pip" | Out-Host
 & $venvPy "-m", "pip", "install", "-r", "$ScriptDir\requirements.txt" | Out-Host
-Write-Host "Зависимости установлены." -ForegroundColor Green
+Write-Host "pip OK." -ForegroundColor Green
 
-Write-Step "Файл настроек .env"
+Write-Step ".env file"
 $envPath = Join-Path $ScriptDir ".env"
 if (-not (Test-Path $envPath)) {
     $secret = ([Guid]::NewGuid().ToString("N") + [Guid]::NewGuid().ToString("N"))
@@ -97,22 +96,25 @@ if (-not (Test-Path $envPath)) {
         if ($content -notmatch "SECRET_KEY=$secret") {
             $content = "SECRET_KEY=$secret`r`n" + $content
         }
-        Set-Content -Path $envPath -Value $content.TrimEnd() -Encoding UTF8
+        $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllText($envPath, $content.TrimEnd(), $Utf8NoBom)
     } else {
-        @(
-            "SECRET_KEY=$secret",
-            "PORT=6565",
-            "ALLOWED_HOSTS=*",
-            "ADMIN_USERNAME=Amir",
-            "MAIL_IMAP_HOST=imap.mail.ru"
-        ) | Set-Content -Path $envPath -Encoding UTF8
+        $body = @"
+SECRET_KEY=$secret
+PORT=6565
+ALLOWED_HOSTS=*
+ADMIN_USERNAME=Amir
+MAIL_IMAP_HOST=imap.mail.ru
+"@
+        $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllText($envPath, $body.Trim(), $Utf8NoBom)
     }
-    Write-Host "Создан .env с новым SECRET_KEY." -ForegroundColor Green
+    Write-Host "Created .env with new SECRET_KEY." -ForegroundColor Green
 } else {
-    Write-Host ".env уже есть — не перезаписываю." -ForegroundColor Green
+    Write-Host ".env exists, not overwriting." -ForegroundColor Green
 }
 
-Write-Step "Брандмауэр Windows (порт 6565)"
+Write-Step "Firewall TCP 6565"
 try {
     $ruleName = "Report Camera Server (Port 6565)"
     $ruleExists = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
@@ -120,20 +122,17 @@ try {
         Remove-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
     }
     New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -LocalPort 6565 -Protocol TCP -Action Allow -Profile Any | Out-Null
-    Write-Host "Правило для TCP 6565 добавлено." -ForegroundColor Green
+    Write-Host "Firewall rule added." -ForegroundColor Green
 } catch {
-    Write-Warning "Не удалось настроить брандмауэр: $($_.Exception.Message). При необходимости откройте порт 6565 вручную."
+    Write-Warning "Firewall: $($_.Exception.Message). Open port 6565 manually if needed."
 }
 
-Write-Step "Автозапуск после перезагрузки Windows"
+Write-Step "Autostart after reboot (Task Scheduler)"
 $taskName = "ReportCamera_AutoStart"
 $nssmService = Get-Service -Name "ReportCamera" -ErrorAction SilentlyContinue
 if ($nssmService) {
-    Write-Warning @"
-Уже установлена служба «ReportCamera» (режим NSSM из setup_as_service.bat).
-Автозапуск через планировщик НЕ добавлен — иначе при старте поднялись бы ДВА процесса на порту 6565.
-Отключите службу в services.msc, затем снова запустите setup_server.bat — или пользуйтесь только службой.
-"@
+    Write-Warning "Windows service 'ReportCamera' (NSSM) is installed. Skipping scheduled task to avoid two instances on port 6565."
+    Write-Warning "Stop the service if you want setup_server.bat autostart only, or use setup_as_service.bat only."
 } else {
     try {
         Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
@@ -149,43 +148,41 @@ if ($nssmService) {
         $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
         $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
         Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal `
-            -Description "Report Camera: веб-панель и бот после перезагрузки (режим setup_server.bat)" -Force | Out-Null
-        Write-Host "Планировщик: задача «$taskName» — запуск при старте Windows (~45 с задержкой)." -ForegroundColor Green
+            -Description "Report Camera: web and bot after reboot (setup_server.bat)" -Force | Out-Null
+        Write-Host "Scheduled task: $taskName (at startup, ~45s delay)." -ForegroundColor Green
     } catch {
-        Write-Warning "Не удалось создать задачу автозапуска: $($_.Exception.Message). Запускайте start_report_camera.bat вручную после перезагрузки."
+        Write-Warning "Could not register autostart task: $($_.Exception.Message). Run start_report_camera.bat manually after reboot."
     }
 }
 
-Write-Step "Создание ярлыка запуска на рабочем столе"
+Write-Step "Desktop shortcut"
 $startBat = Join-Path $ScriptDir "start_report_camera.bat"
 try {
     $WshShell = New-Object -ComObject WScript.Shell
     $desktop = [Environment]::GetFolderPath("Desktop")
     if ([string]::IsNullOrWhiteSpace($desktop)) {
-        Write-Warning "Папка рабочего стола недоступна — ярлык не создан. Запускайте start_report_camera.bat из папки программы."
+        Write-Warning "Desktop folder not available. Run start_report_camera.bat from the project folder."
     } else {
         $shortcutPath = Join-Path $desktop "Report Camera.lnk"
         $sc = $WshShell.CreateShortcut($shortcutPath)
         $sc.TargetPath = $startBat
         $sc.WorkingDirectory = $ScriptDir
         $sc.WindowStyle = 1
-        $sc.Description = "Report Camera NVR — веб-панель и бот"
+        $sc.Description = "Report Camera"
         $sc.Save()
-        Write-Host "Ярлык: $shortcutPath" -ForegroundColor Green
+        Write-Host "Shortcut: $shortcutPath" -ForegroundColor Green
     }
 } catch {
-    Write-Warning "Не удалось создать ярлык: $($_.Exception.Message). Используйте start_report_camera.bat вручную."
+    Write-Warning "Shortcut failed: $($_.Exception.Message)"
 }
 
 Write-Host "`n=========================================================" -ForegroundColor Cyan
-Write-Host " УСТАНОВКА ЗАВЕРШЕНА" -ForegroundColor Green
-Write-Host " Откройте в браузере: http://localhost:6565" -ForegroundColor Yellow
-Write-Host " Логин по умолчанию смотрите в credentials.txt после первого запуска." -ForegroundColor Gray
-Write-Host " Сейчас откроется окно с сервером (первый раз) — можно свернуть; после перезагрузки окно не обязательно." -ForegroundColor Yellow
-Write-Host " После перезагрузки сервер поднимется сам (задача планировщика ReportCamera_AutoStart)," -ForegroundColor Yellow
-Write-Host " если не используете параллельно службу NSSM «ReportCamera»." -ForegroundColor Yellow
-Write-Host " Если программа уже поднята автоматически после загрузки, второй раз ярлык" -ForegroundColor Gray
-Write-Host " запускать не нужно (будет конфликт порта 6565)." -ForegroundColor Gray
+Write-Host " DONE" -ForegroundColor Green
+Write-Host " Browser: http://localhost:6565" -ForegroundColor Yellow
+Write-Host " Default login: see credentials.txt after first run." -ForegroundColor Gray
+Write-Host " A second window will open with the server (first time)." -ForegroundColor Yellow
+Write-Host " After reboot: task ReportCamera_AutoStart starts the app (unless NSSM service is used)." -ForegroundColor Yellow
+Write-Host " Do not run the shortcut twice or you get port 6565 conflict." -ForegroundColor Gray
 Write-Host "=========================================================`n" -ForegroundColor Cyan
 
 Start-Sleep -Seconds 1
