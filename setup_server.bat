@@ -1,27 +1,36 @@
 @echo off
-title 1-Click Server Installer (Report Camera)
+chcp 65001 >nul
+title Report Camera — автоматическая установка
 color 0B
+
 echo.
 echo ================================================================
-echo   Запуск автоматической установки сервера (Report Camera)
+echo   Report Camera — установка и запуск (Windows Server / ПК)
+echo   После установки сервер откроется в отдельном окне.
 echo ================================================================
 echo.
 
-:: Проверка прав Администратора
 net session >nul 2>&1
 if %errorLevel% == 0 (
-    echo Права администратора подтверждены.
+    echo Права администратора: да.
 ) else (
-    echo Запрос прав Администратора...
-    powershell -Command "Start-Process -Verb RunAs -FilePath '%0' -ArgumentList 'am_admin'"
+    echo Запрос прав администратора...
+    powershell -NoProfile -Command "Start-Process -Verb RunAs -FilePath '%~f0'"
     exit /b
 )
 
-:: Переходим в папку со скриптом
 cd /d "%~dp0"
 
-echo Запуск основного установщика (PowerShell)...
-powershell.exe -ExecutionPolicy Bypass -NoProfile -File "server_deploy.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup_autonomous.ps1"
+if errorlevel 1 (
+    echo.
+    echo Установка прервалась с ошибкой. Сообщение выше.
+    pause
+    exit /b 1
+)
 
+echo.
+echo Окно с сервером должно было открыться отдельно.
+echo На рабочем столе ярлык «Report Camera» для следующих запусков.
 echo.
 pause
